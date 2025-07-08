@@ -1,0 +1,16 @@
+{
+  "001": {
+    "name": "Aditya Sharma",
+    "age": 25,
+    "city": "Mumbai",
+    "account_type": "Salaried",
+    "file": "001_transactions.csv"
+  },
+  "002": {
+    "name": "Ramesh Kumar",
+    "age": 55,
+    "city": "Lucknow",
+    "account_type": "Retired",
+    "file": "002_transactions.csv"
+  }
+}
