@@ -1,0 +1,9 @@
+pandas
+streamlit
+gradio
+google-generativeai
+sentence-transformers
+PyMuPDF
+python-docx
+openpyxl
+faiss-cpu
