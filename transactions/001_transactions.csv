@@ -1,0 +1,61 @@
+Date,Type,Amount,Category,Description,Balance,Channel
+2025-04-24,debit,3726.56,SIP Investment,SIP to Mutual Fund,46273.44,NetBanking
+2025-01-24,debit,4649.45,SIP Investment,SIP to Mutual Fund,41623.99,NetBanking
+2025-05-11,debit,5158.73,SIP Investment,SIP to Mutual Fund,36465.26,NetBanking
+2025-04-25,credit,244.55,Cashback,Cashback from offer,36709.81,UPI
+2025-02-11,debit,876.83,Utility Bill,Electricity/Water bill,35832.98,UPI
+2025-03-13,debit,585.71,Subscription,Streaming/Cloud service,35247.27,UPI
+2025-06-29,debit,13415.4,SIP Investment,SIP to Mutual Fund,21831.87,NetBanking
+2025-04-10,debit,1325.3,Utility Bill,Electricity/Water bill,20506.57,UPI
+2025-01-04,debit,30564.81,Home Loan EMI,EMI payment,-10058.24,AutoDebit
+2025-06-08,debit,542.06,Subscription,Streaming/Cloud service,-10600.3,UPI
+2025-03-24,debit,8445.36,SIP Investment,SIP to Mutual Fund,-19045.66,NetBanking
+2025-03-14,credit,230.65,Cashback,Cashback from offer,-18815.01,UPI
+2025-06-01,debit,843.88,Subscription,Streaming/Cloud service,-19658.89,UPI
+2025-04-19,debit,2736.57,Utility Bill,Electricity/Water bill,-22395.46,UPI
+2025-03-02,debit,9719.97,SIP Investment,SIP to Mutual Fund,-32115.43,NetBanking
+2025-05-11,credit,310.56,Cashback,Cashback from offer,-31804.87,UPI
+2025-04-07,credit,93522.84,Salary,Salary from employer,61717.97,NEFT
+2025-04-04,credit,73989.24,Salary,Salary from employer,135707.21,NEFT
+2025-03-10,debit,4602.24,SIP Investment,SIP to Mutual Fund,131104.97,NetBanking
+2025-05-18,credit,83177.32,Salary,Salary from employer,214282.29,NEFT
+2025-05-01,debit,158.5,Subscription,Streaming/Cloud service,214123.79,UPI
+2025-04-13,credit,130.75,Cashback,Cashback from offer,214254.54,UPI
+2025-04-14,credit,312.52,Cashback,Cashback from offer,214567.06,UPI
+2025-01-08,debit,913.45,Subscription,Streaming/Cloud service,213653.61,UPI
+2025-05-27,debit,2986.23,Online Shopping,Flipkart/Amazon order,210667.38,UPI
+2025-04-18,debit,7699.42,SIP Investment,SIP to Mutual Fund,202967.96,NetBanking
+2025-04-26,credit,80501.65,Salary,Salary from employer,283469.61,NEFT
+2025-02-06,credit,108444.49,Salary,Salary from employer,391914.1,NEFT
+2025-04-19,debit,9939.84,SIP Investment,SIP to Mutual Fund,381974.26,NetBanking
+2025-06-29,debit,899.22,Utility Bill,Electricity/Water bill,381075.04,UPI
+2025-01-20,credit,104873.5,Salary,Salary from employer,485948.54,NEFT
+2025-06-12,credit,202.4,Cashback,Cashback from offer,486150.94,UPI
+2025-04-22,debit,33698.47,Home Loan EMI,EMI payment,452452.47,AutoDebit
+2025-03-13,debit,879.66,Subscription,Streaming/Cloud service,451572.81,UPI
+2025-02-15,credit,337.92,Cashback,Cashback from offer,451910.73,UPI
+2025-06-15,debit,862.59,Subscription,Streaming/Cloud service,451048.14,UPI
+2025-06-04,debit,30402.09,Home Loan EMI,EMI payment,420646.05,AutoDebit
+2025-03-22,debit,161.53,Subscription,Streaming/Cloud service,420484.52,UPI
+2025-01-18,credit,421.3,Cashback,Cashback from offer,420905.82,UPI
+2025-01-05,debit,8510.67,SIP Investment,SIP to Mutual Fund,412395.15,NetBanking
+2025-04-18,debit,29883.66,Home Loan EMI,EMI payment,382511.49,AutoDebit
+2025-04-27,debit,2368.18,Utility Bill,Electricity/Water bill,380143.31,UPI
+2025-01-15,debit,400.94,Subscription,Streaming/Cloud service,379742.37,UPI
+2025-02-16,debit,639.38,Utility Bill,Electricity/Water bill,379102.99,UPI
+2025-04-08,debit,402.61,Subscription,Streaming/Cloud service,378700.38,UPI
+2025-06-11,debit,30115.66,Home Loan EMI,EMI payment,348584.72,AutoDebit
+2025-06-02,debit,5511.03,Online Shopping,Flipkart/Amazon order,343073.69,UPI
+2025-05-15,debit,2405.07,Utility Bill,Electricity/Water bill,340668.62,UPI
+2025-06-24,debit,5889.26,SIP Investment,SIP to Mutual Fund,334779.36,NetBanking
+2025-01-09,debit,27598.81,Home Loan EMI,EMI payment,307180.55,AutoDebit
+2025-05-07,credit,433.08,Cashback,Cashback from offer,307613.63,UPI
+2025-03-14,debit,466.15,Subscription,Streaming/Cloud service,307147.48,UPI
+2025-01-14,debit,313.39,Subscription,Streaming/Cloud service,306834.09,UPI
+2025-02-23,debit,11985.64,SIP Investment,SIP to Mutual Fund,294848.45,NetBanking
+2025-04-11,debit,1350.25,Online Shopping,Flipkart/Amazon order,293498.2,UPI
+2025-01-27,debit,11840.53,SIP Investment,SIP to Mutual Fund,281657.67,NetBanking
+2025-02-13,debit,2214.67,Utility Bill,Electricity/Water bill,279443.0,UPI
+2025-04-08,credit,107634.12,Salary,Salary from employer,387077.12,NEFT
+2025-03-01,debit,745.9,Subscription,Streaming/Cloud service,386331.22,UPI
+2025-05-21,credit,79288.0,Salary,Salary from employer,465619.22,NEFT
