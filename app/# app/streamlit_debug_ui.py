@@ -4,28 +4,40 @@ import os
 import sys
 import streamlit as st
 import importlib.util
+from pathlib import Path
 
-# Utility to dynamically import any utils module
-def load_utils_module(module_name, file_path):
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), file_path))
-    spec = importlib.util.spec_from_file_location(module_name, abs_path)
+# === [STEP 1] Detect Root Directory Dynamically ===
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# === [STEP 2] Dynamic Import Function ===
+def load_utils_module(module_name, relative_path_from_root):
+    module_path = REPO_ROOT / relative_path_from_root
+    if not module_path.exists():
+        raise FileNotFoundError(f"Module file not found: {module_path}")
+    
+    spec = importlib.util.spec_from_file_location(module_name, str(module_path))
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
-# Load all required modules
-rag_engine = load_utils_module("rag_engine", "../utils/rag_engine.py")
-intent_mapper = load_utils_module("intent_mapper", "../utils/intent_mapper.py")
-session_manager = load_utils_module("session_manager", "../utils/session_manager.py")
-response_generator = load_utils_module("response_generator", "../utils/response_generator.py")
+# === [STEP 3] Dynamically Import All utils Modules ===
+try:
+    rag_engine = load_utils_module("rag_engine", "utils/rag_engine.py")
+    intent_mapper = load_utils_module("intent_mapper", "utils/intent_mapper.py")
+    session_manager = load_utils_module("session_manager", "utils/session_manager.py")
+    response_generator = load_utils_module("response_generator", "utils/response_generator.py")
+except Exception as e:
+    st.error(f"❌ Critical Import Error:\n\n{e}")
+    st.stop()
 
-# Start Streamlit UI
+# === [UI] Main App ===
 st.set_page_config(page_title="RAG Engine Debugger", layout="wide")
 
 st.title("📂 RAG Engine Debug UI")
-st.markdown("Use this to validate document loading for each use case and modules.")
+st.markdown("Use this to validate document loading and session flow.")
 
+# --- RAG Section ---
 use_case = st.selectbox("Select a Use Case", list(rag_engine.USECASE_DOC_PATHS.keys()))
 
 if st.button("🔍 Load Documents"):
@@ -37,20 +49,25 @@ if st.button("🔍 Load Documents"):
         except Exception as e:
             st.error(f"❌ Failed to load content:\n\n{e}")
 
-# Optional test block for intent or session
+# --- Intent Classification ---
 st.divider()
-st.markdown("### 🔍 Test Other Modules (Optional)")
+st.subheader("🧠 Test Gemini Intent Mapper")
 
-test_query = st.text_input("Type a test query to classify intent:")
+test_query = st.text_input("Enter a sample user query:")
 if test_query:
     result = intent_mapper.classify_intent_and_usecase(test_query)
     st.json(result)
 
-user_id = st.text_input("Test loading a user session (e.g., 001):")
+# --- Session Manager ---
+st.divider()
+st.subheader("👤 Load a User Session")
+
+user_id = st.text_input("Enter user ID (e.g., 001):")
 if user_id:
     session, greeting = session_manager.load_user_session(user_id)
     if session:
-        st.success(f"Loaded session for {session['name']}")
-        st.dataframe(session["transactions"].head())
+        st.success(greeting)
+        st.write("Recent Transactions:")
+        st.dataframe(session["transactions"].tail(5))
     else:
-        st.warning(greeting)
+        st.error(greeting)
