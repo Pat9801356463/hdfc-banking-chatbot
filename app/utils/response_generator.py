@@ -1,9 +1,11 @@
-# utils/response_generator.py
-
 import os
+from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Configure Gemini
+# Load environment variables from .env
+load_dotenv()
+
+# Configure Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Load model
