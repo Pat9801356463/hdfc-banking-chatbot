@@ -4,6 +4,7 @@ import os
 import fitz  # PyMuPDF
 from docx import Document
 
+# Actual file/folder mappings based on your ZIP contents
 USECASE_DOC_PATHS = {
     "Investment (non-sharemarket)": [
         "data/usecases/Invest(non sharemarket)/HDFC FD.docx"
@@ -20,8 +21,8 @@ USECASE_DOC_PATHS = {
     ],
 
     "Banking Norms": [
-        "data/usecases/BankingNorms/Hdfc",  # 14 PDFs
-        "data/usecases/BankingNorms/Rbi"    # 13 PDFs
+        "data/usecases/BankingNorms/Hdfc",  # folder with 14 PDFs
+        "data/usecases/BankingNorms/Rbi"    # folder with 13 PDFs
     ],
 
     "Fraud Complaint - Scenario": [
@@ -52,7 +53,6 @@ USECASE_DOC_PATHS = {
     ]
 }
 
-
 def extract_text_from_docx(path):
     doc = Document(path)
     return "\n".join(para.text.strip() for para in doc.paragraphs if para.text.strip())
@@ -73,17 +73,29 @@ def load_documents_for_use_case(use_case):
 
     for path in paths:
         if os.path.isdir(path):
-            for file in os.listdir(path):
+            for file in sorted(os.listdir(path)):
                 full_path = os.path.join(path, file)
-                if file.endswith(".pdf"):
-                    all_text.append(extract_text_from_pdf(full_path))
-        elif path.endswith(".docx"):
-            all_text.append(extract_text_from_docx(path))
-        elif path.endswith(".pdf"):
-            all_text.append(extract_text_from_pdf(path))
+                try:
+                    if file.endswith(".pdf"):
+                        all_text.append(extract_text_from_pdf(full_path))
+                    elif file.endswith(".docx"):
+                        all_text.append(extract_text_from_docx(full_path))
+                    elif file.endswith(".xlsx"):
+                        all_text.append(f"📊 Loaded Excel: {file} — available for summary or comparison on request.")
+                except Exception as e:
+                    all_text.append(f"⚠️ Failed to load {file}: {e}")
+        else:
+            try:
+                if path.endswith(".pdf"):
+                    all_text.append(extract_text_from_pdf(path))
+                elif path.endswith(".docx"):
+                    all_text.append(extract_text_from_docx(path))
+                elif path.endswith(".xlsx"):
+                    all_text.append(f"📊 Loaded Excel: {os.path.basename(path)} — available for summary or comparison on request.")
+            except Exception as e:
+                all_text.append(f"⚠️ Failed to load {path}: {e}")
 
     if not all_text:
         return "⚠️ No retrievable content found."
 
-    # Optionally limit to top N characters
-    return "\n---\n".join(all_text)[:3000]  # trim for Gemini prompt size
+    return "\n---\n".join(all_text)[:3000]  # Gemini input limit safety
