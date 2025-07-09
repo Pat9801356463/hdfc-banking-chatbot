@@ -1,4 +1,9 @@
+import os
+from dotenv import load_dotenv
 import streamlit as st
+
+# ✅ Load environment variables
+load_dotenv()
 
 # ✅ Correct relative imports (assuming utils is inside app/)
 from utils.rag_engine import load_documents_for_use_case, USECASE_DOC_PATHS
@@ -71,3 +76,4 @@ with tab4:
                 st.markdown(f"**Gemini Response:**\n\n{response}")
             except Exception as e:
                 st.error(f"❌ Failed to generate: {e}")
+
