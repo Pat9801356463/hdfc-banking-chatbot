@@ -1,9 +1,10 @@
-pandas
 streamlit
+pandas
 gradio
 google-generativeai
 sentence-transformers
+faiss-cpu
 PyMuPDF
 python-docx
 openpyxl
-faiss-cpu
+
