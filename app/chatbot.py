@@ -2,6 +2,7 @@
 
 from utils.session_manager import load_user_session
 from utils.intent_mapper import classify_intent_and_usecase
+from utils.rag_engine import load_documents_for_use_case
 
 def main():
     print("🟢 Welcome to the HDFC Banking Assistant\n")
@@ -20,32 +21,38 @@ def main():
         if query.lower() in ['exit', 'quit']:
             break
 
-        # 👉 Step: Intent recognition via Gemini
+        # Step 1: Use Gemini to classify intent and use case
         classification = classify_intent_and_usecase(query)
         intent = classification["intent"]
         use_case = classification["use_case"]
 
-        # Placeholder response (we'll update this later with real logic)
-        dummy_response = f"(Mock response to): {query}"
+        print(f"🧠 Intent: {intent}")
+        print(f"📂 Use Case: {use_case}")
 
-        # 🧠 Store everything in memory
+        # Step 2: Retrieve documents for the use case (RAG layer)
+        context = load_documents_for_use_case(use_case)
+        print("📄 Retrieved Context (trimmed):\n")
+        print(context[:500])  # Preview first 500 characters
+
+        # Step 3: Placeholder response (to be replaced with Gemini final generation)
+        dummy_response = f"(Mock response based on context for use case '{use_case}')"
+
+        # Step 4: Store everything in memory
         session["memory"].append({
             "query": query,
             "intent": intent,
             "use_case": use_case,
+            "context": context[:500],
             "response": dummy_response
         })
 
-        # Output
-        print(f"🧠 Intent: {intent}")
-        print(f"📂 Use Case: {use_case}")
+        # Final output
         print(f"🤖 {dummy_response}")
 
-    # Optional: Summary of session
-    print("\n📝 Session Summary:")
+    # End of session summary
+    print("\n📝 Session Memory Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
 
 if __name__ == "__main__":
     main()
-
