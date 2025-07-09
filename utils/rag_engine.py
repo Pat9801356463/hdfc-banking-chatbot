@@ -5,28 +5,53 @@ import fitz  # PyMuPDF
 from docx import Document
 
 USECASE_DOC_PATHS = {
-    "Investment (non-sharemarket)": ["data/usecases/Investment_Suggestion/sip_guidelines.docx"],
+    "Investment (non-sharemarket)": [
+        "data/usecases/Invest(non sharemarket)/HDFC FD.docx"
+    ],
+
     "Documentation & Process Query": [
-        "data/usecases/Documentation_Process/loan_process.docx",
-        "data/usecases/Documentation_Process/credit_card_terms_1.pdf",
-        "data/usecases/Documentation_Process/credit_card_terms_2.pdf"
+        "data/usecases/Document and Process Query/HomeLoanDocandProcess.docx",
+        "data/usecases/Document and Process Query/Credit Card.pdf",
+        "data/usecases/Document and Process Query/Credit_Card_Info.pdf"
     ],
-    "Loan Prepurchase Query": ["data/usecases/Documentation_Process/loan_process.docx"],
+
+    "Loan Prepurchase Query": [
+        "data/usecases/Loan Purchase query/HomeLoanDocandProcess.docx"
+    ],
+
     "Banking Norms": [
-        "data/usecases/BankingNorms/Hdfc/",  # folder with 14 PDFs
-        "data/usecases/BankingNorms/Rbi/"    # folder with 13 PDFs
+        "data/usecases/BankingNorms/Hdfc",  # 14 PDFs
+        "data/usecases/BankingNorms/Rbi"    # 13 PDFs
     ],
+
     "Fraud Complaint - Scenario": [
-        "data/usecases/Fraud_Safety/fraud_process.docx",
-        "data/usecases/Fraud_Safety/rules.pdf",
-        "data/usecases/Fraud_Safety/safety1.pdf",
-        "data/usecases/Fraud_Safety/safety2.pdf"
+        "data/usecases/FraudSafety/FraudComplaint.docx",
+        "data/usecases/FraudSafety/FraudSafety.docx",
+        "data/usecases/FraudSafety/Master Directions on Cyber Resilience and Digital Payment Security Controls for non-bank Payment System Operators.pdf",
+        "data/usecases/FraudSafety/Master Directions on Fraud Risk Management in Urban Cooperative Banks (UCBs)  State Cooperative Banks (StCBs) Central Cooperative Banks (CCBs).pdf",
+        "data/usecases/FraudSafety/Master Directions on Fraud Risk Management in Urban Cooperative Banks (UCBs) State Cooperative Banks (StCBs) Central Cooperative Banks (CCBs).pdf"
     ],
+
     "KYC & Details Update": [
-        "data/usecases/KYC_Details/kyc_norms.pdf",
-        "data/usecases/KYC_Details/kyc_urls.docx"
+        "data/usecases/KYCand Details update/KNOW YOUR CUSTOMER (KYC) NORMS.pdf",
+        "data/usecases/KYCand Details update/KYCupdatelinks.docx"
+    ],
+
+    "Download Statement & Document": [
+        "data/usecases/Download doc&statements/Download Statement and Documents.docx"
+    ],
+
+    "Mutual Funds & Tax Benefits": [
+        "data/usecases/MutualFund&TaxBenifit/Debt Funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Equity Funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Hybrid funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Other Schemes-ETF Funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Other Schemes-Fund of Funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Other Schemes-Index Funds May.xlsx",
+        "data/usecases/MutualFund&TaxBenifit/Solution Oriented Funds May.xlsx"
     ]
 }
+
 
 def extract_text_from_docx(path):
     doc = Document(path)
