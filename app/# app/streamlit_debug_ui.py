@@ -2,11 +2,11 @@
 
 import streamlit as st
 
-# ✅ Now simple direct imports
-from app.utils.rag_engine import load_documents_for_use_case, USECASE_DOC_PATHS
-from app.utils.intent_mapper import classify_intent_and_usecase
-from app.utils.session_manager import load_user_session
-from app.utils.response_generator import generate_final_answer
+from utils.rag_engine import load_documents_for_use_case, USECASE_DOC_PATHS
+from utils.intent_mapper import classify_intent_and_usecase
+from utils.session_manager import load_user_session
+from utils.response_generator import generate_final_answer
+
 
 st.set_page_config(page_title="RAG Engine Debugger", layout="wide")
 
