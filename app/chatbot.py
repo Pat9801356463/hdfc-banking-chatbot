@@ -1,7 +1,7 @@
 # app/chatbot.py
 
 from utils.session_manager import load_user_session
-from utils.intent_mapper import classify_intent_and_usecase
+from utils.context_tracker import update_context_with_memory
 from utils.rag_engine import load_documents_for_use_case
 from utils.response_generator import generate_final_answer
 import pandas as pd  # Needed for fraud ticket date
@@ -23,10 +23,8 @@ def main():
         if query.lower() in ['exit', 'quit']:
             break
 
-        # Step 1: Use Gemini to classify intent and use case
-        classification = classify_intent_and_usecase(query)
-        intent = classification["intent"]
-        use_case = classification["use_case"]
+        # Step 1: Use Gemini to classify intent and infer use case (with memory fallback)
+        intent, use_case = update_context_with_memory(query, session)
 
         print(f"🧠 Intent: {intent}")
         print(f"📂 Use Case: {use_case}")
@@ -38,7 +36,7 @@ def main():
             "Loan Prepurchase Query",
             "Banking Norms",
             "KYC & Details Update",
-            "Download Statement & Document"  # Now using RAG instead of static
+            "Download Statement & Document"
         ]:
             context = load_documents_for_use_case(use_case)
 
@@ -46,8 +44,10 @@ def main():
             context = session["transactions"].tail(5).to_string(index=False)
 
         elif use_case == "Mutual Funds & Tax Benefits":
-            context = "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. " \
-                      "We can help you calculate benefits or suggest tax-saving funds."
+            context = (
+                "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. "
+                "We can help you calculate benefits or suggest tax-saving funds."
+            )
 
         elif use_case == "Fraud Complaint - Scenario":
             last_txn_context = None
@@ -62,9 +62,11 @@ def main():
                 today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
                 ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
 
-                context = f"Based on your recent transaction history:\n\n{last_txn_context}\n\n" \
-                          f"✅ A fraud complaint has been raised.\n" \
-                          f"🆔 Ticket ID: {ticket_id}"
+                context = (
+                    f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
+                    f"✅ A fraud complaint has been raised.\n"
+                    f"🆔 Ticket ID: {ticket_id}"
+                )
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
@@ -74,7 +76,7 @@ def main():
         # Step 3: Generate final response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Store in memory
+        # Step 4: Store interaction in memory
         session["memory"].append({
             "query": query,
             "intent": intent,
