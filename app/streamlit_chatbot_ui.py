@@ -5,20 +5,20 @@ from utils.session_manager import load_user_session
 from utils.context_tracker import update_context_with_memory
 from utils.rag_engine import load_documents_for_use_case
 from utils.response_generator import generate_final_answer
-# from utils.web_retriever import (
-#     get_rbi_latest_circulars,
-#     get_rbi_interest_rates,
-#     get_hdfc_credit_cards,
-#     format_circulars,
-#     format_credit_cards,
-#     format_interest_rates,
-#     resolve_link_via_gemini,
-# )
+from utils.web_retriever import (
+    get_rbi_latest_circulars,
+    get_rbi_interest_rates,
+    get_hdfc_credit_cards,
+    format_circulars,
+    format_credit_cards,
+    format_interest_rates,
+    resolve_link_via_gemini,
+)
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
 
-st.title("🏦 HDFC Banking Assistant (Gemini-Powered)")
-st.markdown("Ask your banking-related queries. The assistant understands intent, loads relevant context, and answers via Gemini.")
+st.title("🏦 HDFC Banking Assistant (RAG + Cohere + Gemini)")
+st.markdown("Ask your banking-related queries. The assistant uses RAG, web data, and Gemini for accurate replies.")
 
 # --- User Login ---
 user_id = st.sidebar.text_input("👤 Enter User ID", value="001")
@@ -39,33 +39,18 @@ if "session_data" in st.session_state:
     if query:
         session = st.session_state.session_data
 
-        # Step 1: Intent + use case inference
+        # Step 1: Intent + Use Case
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Context loading (Simulated mode)
+        # Step 2: RAG + Web Retriever fallback
         try:
-            if "credit card" in query.lower():
-                # cards = get_hdfc_credit_cards()
-                # context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
-                context = "💳 HDFC Credit Cards:\n- Regalia\n- Millennia\n- Infinia\n(📎 Simulated response)"
-
-            elif "rbi circular" in query.lower():
-                # circulars = get_rbi_latest_circulars()
-                # context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
-                context = "📜 Latest RBI Circulars:\n- Monetary Policy July 2025\n- Repo Rate Guidelines\n(📎 Simulated response)"
-
-            elif "interest rate" in query.lower():
-                # rates = get_rbi_interest_rates()
-                # context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
-                context = "📈 RBI Interest Rates:\n- Repo Rate: 6.50%\n- Reverse Repo: 3.35%\n(📎 Simulated response)"
-
-            elif use_case in [
+            if use_case in [
                 "Investment (non-sharemarket)",
                 "Documentation & Process Query",
                 "Loan Prepurchase Query",
                 "Banking Norms",
                 "KYC & Details Update",
-                "Download Statement & Document",
+                "Download Statement & Document"
             ]:
                 context = load_documents_for_use_case(use_case)
 
@@ -74,8 +59,8 @@ if "session_data" in st.session_state:
 
             elif use_case == "Mutual Funds & Tax Benefits":
                 context = (
-                    "📊 You have invested in ELSS and Tax Saver Mutual Funds. Eligible under Section 80C. "
-                    "We can assist in tax-saving strategies. (Simulated)"
+                    "📊 You have invested in ELSS and Tax Saver Mutual Funds. Eligible under Section 80C.\n"
+                    "We can assist in tax-saving strategies."
                 )
 
             elif use_case == "Fraud Complaint - Scenario":
@@ -90,30 +75,43 @@ if "session_data" in st.session_state:
                     ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
                     context = (
                         f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                        f"✅ A fraud complaint has been raised.\n"
-                        f"🆔 Ticket ID: {ticket_id} (Simulated)"
+                        f"✅ A fraud complaint has been raised.\n🆔 Ticket ID: {ticket_id}"
                     )
                 else:
                     context = "⚠️ No recent transactions found to raise a fraud complaint."
 
+            elif "rbi circulars" in query.lower():
+                circulars = get_rbi_latest_circulars()
+                context = f"📜 Latest RBI Circulars:\n{format_circulars(circulars)}"
+
+            elif "credit card" in query.lower():
+                cards = get_hdfc_credit_cards()
+                if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                    context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+                else:
+                    context = f"💳 HDFC Credit Cards:\n{format_credit_cards(cards)}"
+
+            elif "interest rate" in query.lower():
+                rates = get_rbi_interest_rates()
+                if any("http" in v for v in rates.values()):
+                    context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+                else:
+                    context = f"📈 RBI Interest Rates:\n{format_interest_rates(rates)}"
+
             else:
-                # try:
-                #     link_response = resolve_link_via_gemini(query)
-                #     if link_response.startswith("http"):
-                #         context = f"🔗 Please refer to the following resource: {link_response}"
-                #     else:
-                #         context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
-                # except Exception as e:
-                #     context = "⚠️ Gemini failed to retrieve a URL. Please try again later."
-                context = "🔗 Here's a useful link that may help (📎 Simulated Gemini response)."
+                link_response = resolve_link_via_gemini(query)
+                if "http" in link_response:
+                    context = f"🔗 Please refer to the following resource: {link_response}"
+                else:
+                    context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
         except Exception as e:
-            context = f"⚠️ Unable to load context due to: {e}"
+            context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 3: Generate final answer
+        # Step 3: Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Store memory
+        # Step 4: Memory
         st.session_state.chat_history.append({
             "query": query,
             "intent": intent,
@@ -123,7 +121,7 @@ if "session_data" in st.session_state:
         })
         session["memory"].append(st.session_state.chat_history[-1])
 
-# --- Show chat history ---
+# --- Display Chat History ---
 if "chat_history" in st.session_state:
     for item in st.session_state.chat_history:
         with st.chat_message("user"):
