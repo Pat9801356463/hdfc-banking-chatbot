@@ -1,16 +1,6 @@
 # utils/intent_mapper.py
 
-import os
-from dotenv import load_dotenv
-import google.generativeai as genai
-from utils.gemini_helper import safe_generate_content
-
-# Load environment variables
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-# Load model
-model = genai.GenerativeModel("gemini-1.5-flash")
+from utils.cohere_helper import safe_generate_cohere
 
 USE_CASES = [
     "Investment (non-sharemarket)",
@@ -38,11 +28,9 @@ Return your answer in this format:
 Intent: <short_intent>
 Use Case: <selected_use_case>
 """
-    try:
-        result = safe_generate_content(model, prompt)
-        return parse_intent_usecase_response(result)
-    except Exception as e:
-        return {"intent": "unknown", "use_case": "unknown", "error": str(e)}
+    result = safe_generate_cohere(prompt)
+    return parse_intent_usecase_response(result)
+
 
 def parse_intent_usecase_response(response_text):
     lines = response_text.strip().splitlines()
