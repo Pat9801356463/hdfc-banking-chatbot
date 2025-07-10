@@ -1,27 +1,33 @@
+# utils/response_generator.py
+
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables from .env
+# Load environment variables from .env file
 load_dotenv()
 
-# Configure Gemini API
+# Configure Gemini API with secure API key
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Load model
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Choose your model: "gemini-1.5-pro" for depth, "gemini-1.5-flash" for speed
+MODEL_NAME = "gemini-1.5-pro"
+model = genai.GenerativeModel(MODEL_NAME)
 
 def generate_final_answer(query, context, user_name=None):
     prompt = f"""
-You are a helpful banking assistant for HDFC Bank.
+You are a highly informative and polite banking assistant for HDFC Bank.
+
+Always provide structured, clear responses of **at least 4–6 sentences**, using the provided document context.
+Be professional, friendly, and helpful in tone.
 
 User: {user_name if user_name else 'a customer'}
 Query: "{query}"
 
-Based on the following context extracted from documents:
+📄 Document Context:
 {context}
 
-Respond clearly, politely, and concisely to the user.
+Please now generate a detailed, helpful response addressing the query.
 """
 
     try:
