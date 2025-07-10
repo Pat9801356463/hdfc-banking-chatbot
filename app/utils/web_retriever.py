@@ -1,7 +1,9 @@
+# ✅ Enhanced web_retriever.py (integrated with gemini_url_resolver)
 # app/utils/web_retriever.py
 
 import requests
 from bs4 import BeautifulSoup
+from utils.gemini_url_resolver import get_best_url_for_query, format_url_response
 
 # ========================= 🔗 Static Link Extracts from Uploaded Docs =========================
 
@@ -103,3 +105,9 @@ def format_credit_cards(cards):
 def format_interest_rates(rates):
     return "\n".join([f"- {k}: {v}" for k, v in rates.items()])
 
+# ========================= 🤖 Gemini URL Resolver Integration =========================
+
+def resolve_link_via_gemini(query: str) -> str:
+    """Resolve dynamic URL suggestions from Gemini."""
+    gemini_result = get_best_url_for_query(query)
+    return format_url_response(gemini_result)
