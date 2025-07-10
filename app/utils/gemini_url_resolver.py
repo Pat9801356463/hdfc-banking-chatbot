@@ -2,17 +2,18 @@
 
 import os
 from dotenv import load_dotenv
+from utils.cohere_helper import safe_generate_cohere
+from utils.gemini_helper import safe_generate_content
 import google.generativeai as genai
-from utils.gemini_helper import safe_generate_content  # ✅ new import
 
-# Load environment variables
+# Load env vars
 load_dotenv()
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Static known backup links
+# Known links for fallback
 KNOWN_LINKS = {
     "kyc update": "https://instaservices.hdfcbank.com/?journey=116",
     "mobile update": "https://instaservices.hdfcbank.com/?journey=105",
@@ -24,7 +25,18 @@ KNOWN_LINKS = {
 }
 
 
-def extract_relevant_url_from_query(query: str) -> dict:
+def parse_title_url(response_text: str) -> dict:
+    lines = response_text.strip().splitlines()
+    result = {"title": None, "url": None}
+    for line in lines:
+        if line.lower().startswith("title:"):
+            result["title"] = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("url:"):
+            result["url"] = line.split(":", 1)[1].strip()
+    return result
+
+
+def extract_url_using_cohere(query: str) -> dict:
     prompt = f"""
 You are an intelligent assistant for HDFC Bank.
 
@@ -36,15 +48,24 @@ Use this format:
 Title: <title>
 URL: <url>
 """
-    result_text = safe_generate_content(model, prompt)
-    lines = result_text.strip().splitlines()
-    result = {"title": None, "url": None}
-    for line in lines:
-        if line.lower().startswith("title:"):
-            result["title"] = line.split(":", 1)[1].strip()
-        elif line.lower().startswith("url:"):
-            result["url"] = line.split(":", 1)[1].strip()
-    return result
+    response_text = safe_generate_cohere(prompt)
+    return parse_title_url(response_text)
+
+
+def extract_url_using_gemini(query: str) -> dict:
+    prompt = f"""
+You are an intelligent assistant for HDFC Bank.
+
+The user asked: "{query}"
+
+Return the best official HDFC-related URL if possible.
+
+Use this format:
+Title: <title>
+URL: <url>
+"""
+    response_text = safe_generate_content(gemini_model, prompt)
+    return parse_title_url(response_text)
 
 
 def fallback_from_known_links(query: str) -> dict:
@@ -55,10 +76,18 @@ def fallback_from_known_links(query: str) -> dict:
 
 
 def get_best_url_for_query(query: str) -> dict:
-    gemini_result = extract_relevant_url_from_query(query)
-    if not gemini_result["url"] or gemini_result["url"].lower() == "none":
-        return fallback_from_known_links(query)
-    return gemini_result
+    # 1. Try Cohere first
+    result = extract_url_using_cohere(query)
+    if result["url"] and result["url"].startswith("http"):
+        return result
+
+    # 2. Fallback to Gemini
+    result = extract_url_using_gemini(query)
+    if result["url"] and result["url"].startswith("http"):
+        return result
+
+    # 3. Fallback to static list
+    return fallback_from_known_links(query)
 
 
 def format_url_response(data: dict) -> str:
@@ -71,8 +100,7 @@ def resolve_link_via_gemini(query: str) -> str:
     return format_url_response(get_best_url_for_query(query))
 
 
-# --- Test run (optional)
+# --- Test run
 if __name__ == "__main__":
     q = input("Ask something: ")
     print(resolve_link_via_gemini(q))
-
