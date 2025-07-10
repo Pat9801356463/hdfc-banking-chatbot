@@ -1,12 +1,25 @@
+# UI & Web Frameworks
 streamlit
-pandas
-beautifulsoup4
 gradio
-python-dotenv
-google-generativeai==0.5.2 
-sentence-transformers
-faiss-cpu
-PyMuPDF
-python-docx
+
+# Data Handling
+pandas
 openpyxl
+python-docx
+PyMuPDF
+
+# Web Scraping
+beautifulsoup4
+requests
+
+# Semantic Search & Embeddings
+faiss-cpu
+sentence-transformers
+
+# Gemini & Environment Config
+python-dotenv
+google-generativeai==0.5.2
+
+# Optional (for retry/backoff patterns and HTTP resilience)
+tenacity
 
