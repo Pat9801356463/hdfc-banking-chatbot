@@ -3,14 +3,13 @@
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+from utils.gemini_helper import safe_generate_content
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
-
-# Configure Gemini API with secure API key
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Choose your model: "gemini-1.5-pro" for depth, "gemini-1.5-flash" for speed
+# Load model
 MODEL_NAME = "gemini-1.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
@@ -29,9 +28,4 @@ Query: "{query}"
 
 Please now generate a detailed, helpful response addressing the query.
 """
-
-    try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        return f"⚠️ Gemini API error: {e}"
+    return safe_generate_content(model, prompt)
