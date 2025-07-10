@@ -11,7 +11,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Choose your model: "gemini-1.5-pro" for depth, "gemini-1.5-flash" for speed
-MODEL_NAME = "gemini-1.5-pro"
+MODEL_NAME = "gemini-1.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
 def generate_final_answer(query, context, user_name=None):
