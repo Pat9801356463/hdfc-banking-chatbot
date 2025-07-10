@@ -1,5 +1,6 @@
 streamlit
 pandas
+beautifulsoup4
 gradio
 python-dotenv
 google-generativeai==0.5.2 
