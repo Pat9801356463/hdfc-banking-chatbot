@@ -1,122 +1,100 @@
 # app/streamlit_chatbot_ui.py
 
 import streamlit as st
-from app.utils.session_manager import load_user_session
-from app.utils.intent_mapper import classify_intent_and_usecase
-from app.utils.rag_engine import load_documents_for_use_case
-from app.utils.response_generator import generate_final_answer
-import pandas as pd
+from utils.session_manager import load_user_session
+from utils.intent_mapper import classify_intent_and_usecase
+from utils.rag_engine import load_documents_for_use_case
+from utils.response_generator import generate_final_answer
 
-# App configuration
-st.set_page_config(page_title="💬 HDFC Chatbot UI", layout="wide")
-st.title("🤖 HDFC Banking Assistant")
+st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
 
-# Initialize session state
-if "session" not in st.session_state:
-    st.session_state.session = None
-if "current_use_case" not in st.session_state:
-    st.session_state.current_use_case = None
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+st.title("🏦 HDFC Banking Assistant (Gemini-Powered)")
+st.markdown("Ask your banking-related queries. The assistant understands intent, loads relevant context, and answers via Gemini.")
 
-# ------------------ USER LOGIN ------------------
-with st.sidebar:
-    st.header("👤 User Login")
-    user_id = st.text_input("Enter your User ID", value="001")
-    if st.button("🔓 Load Session"):
-        session, greeting = load_user_session(user_id)
-        if session:
-            st.session_state.session = session
-            st.success(greeting)
-        else:
-            st.error(greeting)
+# --- User Session ---
+user_id = st.sidebar.text_input("👤 Enter User ID", value="001")
 
-# ------------------ MAIN CHAT ------------------
-if st.session_state.session:
-    st.subheader(f"Hello, {st.session_state.session['name']}! How can I assist you today?")
-    user_query = st.text_input("💬 Your Message")
+if user_id and "session_data" not in st.session_state:
+    session, greeting = load_user_session(user_id)
+    if session:
+        st.session_state.session_data = session
+        st.session_state.chat_history = []
+        st.success(greeting)
+    else:
+        st.error(greeting)
 
-    if st.button("➡️ Send") and user_query:
-        # Step 1: Intent classification
-        classification = classify_intent_and_usecase(user_query)
+# --- Chat Input Interface ---
+if "session_data" in st.session_state:
+    query = st.chat_input("Ask me anything...")
+
+    if query:
+        session = st.session_state.session_data
+
+        # Step 1: Classify query
+        classification = classify_intent_and_usecase(query)
         intent = classification["intent"]
         use_case = classification["use_case"]
 
-        # Step 2: Maintain continuity if use_case is too vague
-        if use_case == "General Query" and st.session_state.current_use_case:
-            use_case = st.session_state.current_use_case
-        else:
-            st.session_state.current_use_case = use_case
-
-        # Step 3: Context gathering
+        # Step 2: Load context based on intent
         if use_case in [
             "Investment (non-sharemarket)",
             "Documentation & Process Query",
             "Loan Prepurchase Query",
             "Banking Norms",
             "KYC & Details Update",
-            "Download Statement & Document"
+            "Download Statement & Document",
         ]:
             context = load_documents_for_use_case(use_case)
 
         elif use_case == "Transaction History":
-            context = st.session_state.session["transactions"].tail(5).to_string(index=False)
+            context = session["transactions"].tail(5).to_string(index=False)
 
         elif use_case == "Mutual Funds & Tax Benefits":
-            context = "You have invested in ELSS and Tax Saver Mutual Funds, eligible under Section 80C. " \
-                      "HDFC Bank offers a range of SIPs that can help you save tax."
+            context = "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. " \
+                      "We can help you calculate benefits or suggest tax-saving funds."
 
         elif use_case == "Fraud Complaint - Scenario":
             last_txn_context = None
-            for mem in reversed(st.session_state.session["memory"]):
+            for mem in reversed(session["memory"]):
                 if mem["use_case"] == "Transaction History":
                     last_txn_context = mem["context"]
                     break
+
             if last_txn_context:
-                txn_number = len([line for line in last_txn_context.splitlines() if line.strip()])
+                import pandas as pd
+                lines = [line for line in last_txn_context.strip().split("\n") if line]
+                txn_number = len(lines)
                 today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
-                ticket_id = f"{st.session_state.session['user_id']}-{today_str}-{txn_number:02}"
-                context = f"Based on your transaction history:\n\n{last_txn_context}\n\n" \
-                          f"✅ A fraud complaint has been raised.\n🆔 Ticket ID: {ticket_id}"
+                ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
+
+                context = f"Based on your recent transaction history:\n\n{last_txn_context}\n\n" \
+                          f"✅ A fraud complaint has been raised.\n" \
+                          f"🆔 Ticket ID: {ticket_id}"
             else:
-                context = "⚠️ No recent transactions found to raise a fraud complaint."
+                context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
         else:
-            context = "❓ No relevant documents or context available."
+            context = "❓ No context available for this use case."
 
-        # Step 4: Generate answer using Gemini
-        past_context = "\n\n".join(
-            f"User: {mem['query']}\nBot: {mem['response']}"
-            for mem in st.session_state.session["memory"][-3:]
-        )
+        # Step 3: Generate final response
+        final_response = generate_final_answer(query, context, session["name"])
 
-        final_response = generate_final_answer(
-            query=user_query,
-            context=context,
-            user_name=st.session_state.session["name"],
-            past_turns=past_context
-        )
-
-        # Step 5: Store in memory
-        st.session_state.session["memory"].append({
-            "query": user_query,
+        # Step 4: Store in memory
+        memory_entry = {
+            "query": query,
             "intent": intent,
             "use_case": use_case,
-            "context": context[:500],
+            "context": context[:500],  # preview
             "response": final_response
-        })
+        }
 
-        # Step 6: Show chat
-        st.session_state.chat_history.append((user_query, final_response))
+        st.session_state.chat_history.append(memory_entry)
+        session["memory"].append(memory_entry)
 
-    # Display the chat history
-    for user_msg, bot_msg in reversed(st.session_state.chat_history):
-        st.markdown(f"**🧑 You:** {user_msg}")
-        st.markdown(f"**🤖 Bot:** {bot_msg}")
-
-    # Optional debug
-    if st.checkbox("🧠 Show Memory", value=False):
-        st.json(st.session_state.session["memory"], expanded=False)
-
-else:
-    st.warning("Please login using your User ID from the sidebar to begin.")
+# --- Display Chat History ---
+if "chat_history" in st.session_state:
+    for item in st.session_state.chat_history:
+        with st.chat_message("user"):
+            st.write(item["query"])
+        with st.chat_message("assistant"):
+            st.markdown(item["response"])
