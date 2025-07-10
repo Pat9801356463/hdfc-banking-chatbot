@@ -1,25 +1,40 @@
-# UI & Web Frameworks
-streamlit
-gradio
+# Streamlit & UI
+streamlit==1.46.1
+gradio==5.36.2
+gradio-client==1.10.4
 
-# Data Handling
-pandas
-openpyxl
-python-docx
-PyMuPDF
+# Core Utilities
+pandas==2.3.1
+numpy==2.3.1
+python-dotenv==1.1.1
+requests==2.32.4
+
+# Google Gemini
+google-generativeai==0.5.2
+google-api-core==2.25.1
+google-auth==2.40.3
+google-auth-httplib2==0.2.0
+google-api-python-client==2.176.0
+google-ai-generativelanguage==0.6.2
 
 # Web Scraping
-beautifulsoup4
-requests
+beautifulsoup4==4.13.4
+lxml==6.0.0
+
+# Document Parsing
+python-docx==1.2.0
+PyMuPDF==1.26.3
+openpyxl==3.1.5
 
 # Semantic Search & Embeddings
-faiss-cpu
-sentence-transformers
+faiss-cpu==1.11.0
+sentence-transformers==5.0.0
+scikit-learn==1.7.0
 
-# Gemini & Environment Config
-python-dotenv
-google-generativeai==0.5.2
+# Retry Utilities
+tenacity==9.1.2
 
-# Optional (for retry/backoff patterns and HTTP resilience)
-tenacity
+# Optional (performance/logging tools)
+protobuf==4.25.8
+rich==14.0.0
 
