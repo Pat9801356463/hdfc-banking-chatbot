@@ -11,7 +11,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# -- Example Knowledge Base (optional fallback)
+# -- Static fallback links
 KNOWN_LINKS = {
     "kyc update": "https://instaservices.hdfcbank.com/?journey=116",
     "mobile update": "https://instaservices.hdfcbank.com/?journey=105",
@@ -22,18 +22,19 @@ KNOWN_LINKS = {
     "block card": "https://www.hdfcbank.com/personal/faq/card-blocking"
 }
 
+
 def extract_relevant_url_from_query(query: str) -> dict:
     prompt = f"""
-You are an intelligent banking assistant for HDFC Bank.
-The user asked: "{query}"
+You are an intelligent assistant for HDFC Bank.
+A user has asked the following query: "{query}"
 
-From your knowledge or official HDFC links, suggest the most relevant official URL to help the user.
+From your knowledge or public information, return the most relevant official link from HDFC Bank or RBI to help them.
 
-Return your response in this format:
-Title: <title>
-URL: <official_url>
+Respond strictly in the format below:
+Title: <title of the link>
+URL: <valid https:// link>
 
-If no match is found, return:
+If you cannot determine any good match, say:
 Title: None
 URL: None
 """
@@ -51,11 +52,13 @@ URL: None
     except Exception as e:
         return {"title": "Error", "url": f"Gemini API error: {e}"}
 
+
 def fallback_from_known_links(query: str) -> dict:
     for keyword, link in KNOWN_LINKS.items():
         if keyword in query.lower():
             return {"title": keyword.title(), "url": link}
     return {"title": None, "url": None}
+
 
 def get_best_url_for_query(query: str) -> dict:
     result = extract_relevant_url_from_query(query)
@@ -63,13 +66,16 @@ def get_best_url_for_query(query: str) -> dict:
         return fallback_from_known_links(query)
     return result
 
-def format_url_response(data: dict) -> str:
-    if data["title"] and data["url"]:
-        return f"Here is the link for **{data['title']}**: [Click here]({data['url']})"
+
+def resolve_link_via_gemini(query: str) -> str:
+    """Used by other modules like web_retriever.py"""
+    result = get_best_url_for_query(query)
+    if result["title"] and result["url"]:
+        return f"Here is the link for **{result['title']}**: [Click here]({result['url']})"
     return "❌ No relevant official link found. Please refine your question."
 
-# --- Example usage ---
+
+# --- Manual test
 if __name__ == "__main__":
-    q = input("Ask a query to find the relevant URL: ")
-    url_data = get_best_url_for_query(q)
-    print(format_url_response(url_data))
+    q = input("🔎 Ask something: ")
+    print(resolve_link_via_gemini(q))
