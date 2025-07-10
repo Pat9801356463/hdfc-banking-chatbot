@@ -1,4 +1,3 @@
-# ✅ Updated chatbot.py with Gemini URL Resolver
 # app/chatbot.py
 
 from utils.session_manager import load_user_session
@@ -75,7 +74,7 @@ def main():
                 context = (
                     f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
                     f"✅ A fraud complaint has been raised.\n"
-                    f"🆔 Ticket ID: {ticket_id}"
+                    f"🆚 Ticket ID: {ticket_id}"
                 )
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
@@ -86,16 +85,24 @@ def main():
 
         elif "credit card" in query.lower():
             cards = get_hdfc_credit_cards()
-            context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
+            if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+            else:
+                context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
 
         elif "interest rate" in query.lower():
             rates = get_rbi_interest_rates()
-            context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
+            if any("http" in v for v in rates.values()):
+                context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+            else:
+                context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
 
         else:
-            # Step 2b: Try Gemini-based link resolution
             link_response = resolve_link_via_gemini(query)
-            context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
+            if link_response.startswith("http"):
+                context = f"🔗 Please refer to the following resource: {link_response}"
+            else:
+                context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
         # Step 3: Generate final response
         final_response = generate_final_answer(query, context, session["name"])
@@ -111,7 +118,7 @@ def main():
 
         print(f"\n🤖 {final_response}")
 
-    print("\n📝 Session Summary:")
+    print("\n🗒️ Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
 
