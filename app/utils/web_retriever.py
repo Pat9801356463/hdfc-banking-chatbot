@@ -1,14 +1,10 @@
+
 # app/utils/web_retriever.py
 
 import requests
 from bs4 import BeautifulSoup
 
-
 def get_rbi_latest_circulars(limit=5):
-    """
-    Fetch latest circulars from RBI's press release section.
-    Returns a list of (title, URL) tuples.
-    """
     url = "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx"
     try:
         response = requests.get(url, timeout=10)
@@ -26,12 +22,7 @@ def get_rbi_latest_circulars(limit=5):
     except Exception as e:
         return [("⚠️ Failed to retrieve RBI circulars", str(e))]
 
-
 def get_hdfc_credit_cards(limit=5):
-    """
-    Fetch top HDFC credit card names.
-    Returns a list of credit card names.
-    """
     url = "https://www.hdfcbank.com/personal/pay/cards/credit-cards"
     try:
         response = requests.get(url, timeout=10)
@@ -50,15 +41,11 @@ def get_hdfc_credit_cards(limit=5):
     except Exception as e:
         return [f"⚠️ Failed to retrieve HDFC credit cards: {e}"]
 
-
 def get_rbi_interest_rates():
-    """
-    Scrape RBI interest rate data (e.g., repo rate, reverse repo).
-    Returns a dictionary of rate name -> value.
-    """
     url = "https://www.rbi.org.in/home.aspx"
     try:
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
         rates = {}
@@ -73,14 +60,11 @@ def get_rbi_interest_rates():
     except Exception as e:
         return {"⚠️ Error": str(e)}
 
-
 def format_circulars(circulars):
-    return "\n".join([f"- [{title}]({url})" for title, url in circulars])
-
+    return "\n".join([f"- {title}: {url}" for title, url in circulars])
 
 def format_credit_cards(cards):
     return "\n".join([f"- {name}" for name in cards])
-
 
 def format_interest_rates(rates):
     return "\n".join([f"- {k}: {v}" for k, v in rates.items()])
