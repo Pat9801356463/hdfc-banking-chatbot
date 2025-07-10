@@ -1,17 +1,17 @@
+# utils/intent_mapper.py
+
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+from utils.gemini_helper import safe_generate_content
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
-
-# Configure the Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Load model
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Final 9 use cases
 USE_CASES = [
     "Investment (non-sharemarket)",
     "Documentation & Process Query",
@@ -38,10 +38,9 @@ Return your answer in this format:
 Intent: <short_intent>
 Use Case: <selected_use_case>
 """
-
     try:
-        response = model.generate_content(prompt)
-        return parse_intent_usecase_response(response.text)
+        result = safe_generate_content(model, prompt)
+        return parse_intent_usecase_response(result)
     except Exception as e:
         return {"intent": "unknown", "use_case": "unknown", "error": str(e)}
 
