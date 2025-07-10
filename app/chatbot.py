@@ -1,4 +1,4 @@
-# ✅ Updated chatbot.py (HDFC Assistant)
+# ✅ Updated chatbot.py with Gemini URL Resolver
 # app/chatbot.py
 
 from utils.session_manager import load_user_session
@@ -11,12 +11,13 @@ from utils.web_retriever import (
     get_rbi_interest_rates,
     format_circulars,
     format_credit_cards,
-    format_interest_rates
+    format_interest_rates,
+    resolve_link_via_gemini
 )
 import pandas as pd
 
 def main():
-    print("\U0001F7E2 Welcome to the HDFC Banking Assistant\n")
+    print("🟢 Welcome to the HDFC Banking Assistant\n")
 
     user_id = input("Enter your User ID (e.g. 001): ").strip()
     session, greeting = load_user_session(user_id)
@@ -28,15 +29,15 @@ def main():
     print(greeting)
 
     while True:
-        query = input("\n\U0001F4AC Your Query (or type 'exit' to quit): ").strip()
+        query = input("\n💬 Your Query (or type 'exit' to quit): ").strip()
         if query.lower() in ['exit', 'quit']:
             break
 
         # Step 1: Use Gemini to classify intent and infer use case (with memory fallback)
         intent, use_case = update_context_with_memory(query, session)
 
-        print(f"\U0001F9E0 Intent: {intent}")
-        print(f"\U0001F4C2 Use Case: {use_case}")
+        print(f"🧠 Intent: {intent}")
+        print(f"📂 Use Case: {use_case}")
 
         # Step 2: Load context for this use case
         if use_case in [
@@ -73,17 +74,17 @@ def main():
 
                 context = (
                     f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                    f"\u2705 A fraud complaint has been raised.\n"
-                    f"\U0001F197 Ticket ID: {ticket_id}"
+                    f"✅ A fraud complaint has been raised.\n"
+                    f"🆔 Ticket ID: {ticket_id}"
                 )
             else:
-                context = "\u26A0\uFE0F No recent transactions found to raise a fraud complaint. Please check your transaction history first."
+                context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
-        elif "RBI Circulars" in query:
+        elif "rbi circulars" in query.lower():
             circulars = get_rbi_latest_circulars()
             context = f"Here are the latest RBI circulars:\n{format_circulars(circulars)}"
 
-        elif "credit cards" in query.lower():
+        elif "credit card" in query.lower():
             cards = get_hdfc_credit_cards()
             context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
 
@@ -92,7 +93,9 @@ def main():
             context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
 
         else:
-            context = "\u2753 No context available for this use case."
+            # Step 2b: Try Gemini-based link resolution
+            link_response = resolve_link_via_gemini(query)
+            context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
         # Step 3: Generate final response
         final_response = generate_final_answer(query, context, session["name"])
@@ -106,9 +109,9 @@ def main():
             "response": final_response
         })
 
-        print(f"\n\U0001F916 {final_response}")
+        print(f"\n🤖 {final_response}")
 
-    print("\n\U0001F4DD Session Summary:")
+    print("\n📝 Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
 
