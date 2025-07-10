@@ -1,5 +1,3 @@
-# app/streamlit_chatbot_ui.py
-
 import streamlit as st
 import pandas as pd
 
@@ -7,15 +5,15 @@ from utils.session_manager import load_user_session
 from utils.context_tracker import update_context_with_memory
 from utils.rag_engine import load_documents_for_use_case
 from utils.response_generator import generate_final_answer
-from utils.web_retriever import (
-    get_rbi_latest_circulars,
-    get_rbi_interest_rates,
-    get_hdfc_credit_cards,
-    format_circulars,
-    format_credit_cards,
-    format_interest_rates,
-    resolve_link_via_gemini,
-)
+# from utils.web_retriever import (
+#     get_rbi_latest_circulars,
+#     get_rbi_interest_rates,
+#     get_hdfc_credit_cards,
+#     format_circulars,
+#     format_credit_cards,
+#     format_interest_rates,
+#     resolve_link_via_gemini,
+# )
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
 
@@ -44,25 +42,22 @@ if "session_data" in st.session_state:
         # Step 1: Intent + use case inference
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Context loading (WebRetriever first)
+        # Step 2: Context loading (Simulated mode)
         try:
             if "credit card" in query.lower():
-                cards = get_hdfc_credit_cards()
-                if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
-                    context = f"🔗 Please refer to the official credit card page: {cards[0]}"
-                else:
-                    context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
+                # cards = get_hdfc_credit_cards()
+                # context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
+                context = "💳 HDFC Credit Cards:\n- Regalia\n- Millennia\n- Infinia\n(📎 Simulated response)"
 
             elif "rbi circular" in query.lower():
-                circulars = get_rbi_latest_circulars()
-                context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
+                # circulars = get_rbi_latest_circulars()
+                # context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
+                context = "📜 Latest RBI Circulars:\n- Monetary Policy July 2025\n- Repo Rate Guidelines\n(📎 Simulated response)"
 
             elif "interest rate" in query.lower():
-                rates = get_rbi_interest_rates()
-                if any("http" in v for v in rates.values()):
-                    context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
-                else:
-                    context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
+                # rates = get_rbi_interest_rates()
+                # context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
+                context = "📈 RBI Interest Rates:\n- Repo Rate: 6.50%\n- Reverse Repo: 3.35%\n(📎 Simulated response)"
 
             elif use_case in [
                 "Investment (non-sharemarket)",
@@ -79,8 +74,8 @@ if "session_data" in st.session_state:
 
             elif use_case == "Mutual Funds & Tax Benefits":
                 context = (
-                    "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. "
-                    "We can help you calculate benefits or suggest tax-saving funds."
+                    "📊 You have invested in ELSS and Tax Saver Mutual Funds. Eligible under Section 80C. "
+                    "We can assist in tax-saving strategies. (Simulated)"
                 )
 
             elif use_case == "Fraud Complaint - Scenario":
@@ -96,20 +91,21 @@ if "session_data" in st.session_state:
                     context = (
                         f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
                         f"✅ A fraud complaint has been raised.\n"
-                        f"🆔 Ticket ID: {ticket_id}"
+                        f"🆔 Ticket ID: {ticket_id} (Simulated)"
                     )
                 else:
                     context = "⚠️ No recent transactions found to raise a fraud complaint."
 
             else:
-                try:
-                    link_response = resolve_link_via_gemini(query)
-                    if link_response.startswith("http"):
-                        context = f"🔗 Please refer to the following resource: {link_response}"
-                    else:
-                        context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
-                except Exception as e:
-                    context = "⚠️ Gemini failed to retrieve a URL. Please try again later."
+                # try:
+                #     link_response = resolve_link_via_gemini(query)
+                #     if link_response.startswith("http"):
+                #         context = f"🔗 Please refer to the following resource: {link_response}"
+                #     else:
+                #         context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
+                # except Exception as e:
+                #     context = "⚠️ Gemini failed to retrieve a URL. Please try again later."
+                context = "🔗 Here's a useful link that may help (📎 Simulated Gemini response)."
 
         except Exception as e:
             context = f"⚠️ Unable to load context due to: {e}"
