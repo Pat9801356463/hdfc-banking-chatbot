@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 from utils.gemini_url_resolver import resolve_link_via_gemini
 
-
 def get_rbi_latest_circulars(limit=5):
     url = "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx"
     try:
@@ -23,15 +22,14 @@ def get_rbi_latest_circulars(limit=5):
     except Exception as e:
         return [("⚠️ Failed to retrieve RBI circulars", str(e))]
 
-
 def get_hdfc_credit_cards(limit=5):
     # ✅ Gemini URL resolution first
     try:
         gemini_result = resolve_link_via_gemini("List HDFC credit cards")
         if "http" in gemini_result:
             return [gemini_result]  # Return as a list for consistency
-    except:
-        pass
+    except Exception as e:
+        print(f"Gemini resolution error: {e}")
 
     # 🧾 Then fallback to scraping
     url = "https://www.hdfcbank.com/personal/pay/cards/credit-cards"
@@ -52,14 +50,13 @@ def get_hdfc_credit_cards(limit=5):
     except Exception as e:
         return [f"⚠️ Failed to retrieve HDFC credit cards: {e}"]
 
-
 def get_rbi_interest_rates():
     try:
         gemini_result = resolve_link_via_gemini("RBI interest rate table")
         if "http" in gemini_result:
             return {"🔗 Gemini-Suggested RBI Rates Link": gemini_result}
-    except:
-        pass
+    except Exception as e:
+        print(f"Gemini resolution error: {e}")
 
     url = "https://www.rbi.org.in/home.aspx"
     try:
@@ -78,14 +75,11 @@ def get_rbi_interest_rates():
     except Exception as e:
         return {"⚠️ Error": str(e)}
 
-
 def format_circulars(circulars):
     return "\n".join([f"- [{title}]({url})" for title, url in circulars])
 
-
 def format_credit_cards(cards):
     return "\n".join([f"- {name}" for name in cards])
-
 
 def format_interest_rates(rates):
     return "\n".join([f"- {k}: {v}" for k, v in rates.items()])
