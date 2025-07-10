@@ -11,7 +11,7 @@ from utils.web_retriever import (
     format_circulars,
     format_credit_cards,
     format_interest_rates,
-    resolve_link_via_gemini
+    resolve_link_via_gemini,
 )
 import pandas as pd
 
@@ -32,82 +32,82 @@ def main():
         if query.lower() in ['exit', 'quit']:
             break
 
-        # Step 1: Use Gemini to classify intent and infer use case (with memory fallback)
+        # Step 1: Intent + Use Case classification
         intent, use_case = update_context_with_memory(query, session)
-
         print(f"🧠 Intent: {intent}")
         print(f"📂 Use Case: {use_case}")
 
-        # Step 2: Load context for this use case
-        if use_case in [
-            "Investment (non-sharemarket)",
-            "Documentation & Process Query",
-            "Loan Prepurchase Query",
-            "Banking Norms",
-            "KYC & Details Update",
-            "Download Statement & Document"
-        ]:
-            context = load_documents_for_use_case(use_case)
+        # Step 2: Context resolution
+        try:
+            if use_case in [
+                "Investment (non-sharemarket)",
+                "Documentation & Process Query",
+                "Loan Prepurchase Query",
+                "Banking Norms",
+                "KYC & Details Update",
+                "Download Statement & Document"
+            ]:
+                context = load_documents_for_use_case(use_case)
 
-        elif use_case == "Transaction History":
-            context = session["transactions"].tail(5).to_string(index=False)
+            elif use_case == "Transaction History":
+                context = session["transactions"].tail(5).to_string(index=False)
 
-        elif use_case == "Mutual Funds & Tax Benefits":
-            context = (
-                "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. "
-                "We can help you calculate benefits or suggest tax-saving funds."
-            )
-
-        elif use_case == "Fraud Complaint - Scenario":
-            last_txn_context = None
-            for mem in reversed(session["memory"]):
-                if mem["use_case"] == "Transaction History":
-                    last_txn_context = mem["context"]
-                    break
-
-            if last_txn_context:
-                lines = [line for line in last_txn_context.strip().split("\n") if line]
-                txn_number = len(lines)
-                today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
-                ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
-
+            elif use_case == "Mutual Funds & Tax Benefits":
                 context = (
-                    f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                    f"✅ A fraud complaint has been raised.\n"
-                    f"🆚 Ticket ID: {ticket_id}"
+                    "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. "
+                    "We can help you calculate benefits or suggest tax-saving funds."
                 )
+
+            elif use_case == "Fraud Complaint - Scenario":
+                last_txn_context = next(
+                    (mem["context"] for mem in reversed(session["memory"])
+                     if mem["use_case"] == "Transaction History"),
+                    None
+                )
+                if last_txn_context:
+                    txn_number = len([line for line in last_txn_context.strip().split("\n") if line])
+                    today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
+                    ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
+                    context = (
+                        f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
+                        f"✅ A fraud complaint has been raised.\n"
+                        f"🆔 Ticket ID: {ticket_id}"
+                    )
+                else:
+                    context = "⚠️ No recent transactions found to raise a fraud complaint."
+
+            elif "rbi circulars" in query.lower():
+                circulars = get_rbi_latest_circulars()
+                context = f"Here are the latest RBI circulars:\n{format_circulars(circulars)}"
+
+            elif "credit card" in query.lower():
+                cards = get_hdfc_credit_cards()
+                if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                    context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+                else:
+                    context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
+
+            elif "interest rate" in query.lower():
+                rates = get_rbi_interest_rates()
+                if any("http" in v for v in rates.values()):
+                    context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+                else:
+                    context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
+
             else:
-                context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
+                link_response = resolve_link_via_gemini(query)
+                if link_response.startswith("http"):
+                    context = f"🔗 Please refer to the following resource: {link_response}"
+                else:
+                    context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
-        elif "rbi circulars" in query.lower():
-            circulars = get_rbi_latest_circulars()
-            context = f"Here are the latest RBI circulars:\n{format_circulars(circulars)}"
+        except Exception as e:
+            context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        elif "credit card" in query.lower():
-            cards = get_hdfc_credit_cards()
-            if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
-                context = f"🔗 Please refer to the official credit card page: {cards[0]}"
-            else:
-                context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
-
-        elif "interest rate" in query.lower():
-            rates = get_rbi_interest_rates()
-            if any("http" in v for v in rates.values()):
-                context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
-            else:
-                context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
-
-        else:
-            link_response = resolve_link_via_gemini(query)
-            if link_response.startswith("http"):
-                context = f"🔗 Please refer to the following resource: {link_response}"
-            else:
-                context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
-
-        # Step 3: Generate final response
+        # Step 3: Generate answer
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Store interaction in memory
+        # Step 4: Log memory
         session["memory"].append({
             "query": query,
             "intent": intent,
@@ -118,6 +118,7 @@ def main():
 
         print(f"\n🤖 {final_response}")
 
+    # End summary
     print("\n🗒️ Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
