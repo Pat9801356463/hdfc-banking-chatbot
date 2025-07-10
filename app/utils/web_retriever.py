@@ -1,8 +1,40 @@
-
 # app/utils/web_retriever.py
 
 import requests
 from bs4 import BeautifulSoup
+
+# ========================= 🔗 Static Link Extracts from Uploaded Docs =========================
+
+def get_hdfc_forms_links():
+    return {
+        "Main Portal": "https://www.hdfcbank.com/",
+        "NetBanking Login": "https://netbanking.hdfcbank.com/netbanking/",
+        "Forms Centre": "https://www.hdfcbank.com/personal/resources/forms-centre",
+        "Insta Services": "https://www.hdfcbank.com/personal/resources/ways-to-bank/online-banking/insta-services",
+        "Interest Certificate": "https://xpressforms.hdfcbank.com/login?redirect=%2Fforms%2Fic01",
+    }
+
+def get_kyc_update_links():
+    return {
+        "KYC Update Portal": "https://instaservices.hdfcbank.com/?journey=116",
+        "Mobile Update Form (PDF)": "https://www.hdfcbank.com/content/dam/hdfc-aem-document/HDFC_Bank/forms/account-details-update/mobile-no-update-form.pdf",
+        "Email Update Form (PDF)": "https://www.hdfcbank.com/content/dam/hdfc-aem-document/HDFC_Bank/forms/account-details-update/email-id-update-form.pdf",
+        "Email Update Journey": "https://instaservices.hdfcbank.com/?journey=106",
+        "Mobile Update Journey": "https://instaservices.hdfcbank.com/?journey=105"
+    }
+
+def get_fraud_reporting_info():
+    return {
+        "Block Debit/Credit Card": "https://www.hdfcbank.com/personal/faq/card-blocking",
+        "Cyber Cell Email": "mailto:cybercell@payzapp.in",
+        "Prepaid Card Support": "https://www.hdfcbank.com/personal/ways-to-bank/phone-banking",
+        "PayZapp Contact": "https://www.hdfcbank.com/personal/make-payments/payzapp"
+    }
+
+def format_links_dict(data):
+    return "\n".join([f"- [{k}]({v})" for k, v in data.items()])
+
+# ========================= 🌐 Live Web Scraping =========================
 
 def get_rbi_latest_circulars(limit=5):
     url = "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx"
@@ -60,6 +92,8 @@ def get_rbi_interest_rates():
     except Exception as e:
         return {"⚠️ Error": str(e)}
 
+# ========================= 📄 Formatters =========================
+
 def format_circulars(circulars):
     return "\n".join([f"- {title}: {url}" for title, url in circulars])
 
@@ -68,3 +102,4 @@ def format_credit_cards(cards):
 
 def format_interest_rates(rates):
     return "\n".join([f"- {k}: {v}" for k, v in rates.items()])
+
