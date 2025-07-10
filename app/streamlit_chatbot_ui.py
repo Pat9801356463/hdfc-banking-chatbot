@@ -1,3 +1,4 @@
+# ✅ Updated Streamlit UI for Gemini Banking Chatbot
 # app/streamlit_chatbot_ui.py
 
 import streamlit as st
@@ -14,9 +15,11 @@ from utils.web_retriever import (
     format_circulars,
     format_credit_cards,
     format_interest_rates,
+    resolve_link_via_gemini,
 )
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
+
 st.title("🏦 HDFC Banking Assistant (Gemini-Powered)")
 st.markdown("Ask your banking-related queries. The assistant understands intent, loads relevant context, and answers via Gemini.")
 
@@ -42,7 +45,7 @@ if "session_data" in st.session_state:
         # Step 1: Infer intent and use case using memory-aware context tracker
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Load context based on use case or web tools
+        # Step 2: Load relevant context based on use case or pattern
         if use_case in [
             "Investment (non-sharemarket)",
             "Documentation & Process Query",
@@ -83,7 +86,7 @@ if "session_data" in st.session_state:
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
-        elif "RBI Circular" in query:
+        elif "rbi circular" in query.lower():
             circulars = get_rbi_latest_circulars()
             context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
 
@@ -96,7 +99,9 @@ if "session_data" in st.session_state:
             context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
 
         else:
-            context = "❓ No context available for this use case."
+            # Fallback to Gemini-based URL resolution
+            link_response = resolve_link_via_gemini(query)
+            context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
         # Step 3: Generate Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
