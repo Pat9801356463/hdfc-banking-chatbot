@@ -1,20 +1,26 @@
 # utils/context_tracker.py
 
+from .intent_mapper import classify_intent_and_usecase
+
 def get_last_use_case(session):
+    """
+    Retrieve the most recent use case from session memory.
+    """
     if "memory" in session and session["memory"]:
         return session["memory"][-1].get("use_case", None)
     return None
 
+
 def update_context_with_memory(query, session):
-    # If no strong use case is found, fallback to previous one
-    from .intent_mapper import classify_intent_and_usecase
-    
+    """
+    Classifies the user's query using Cohere.
+    Falls back to the last known use case if classification is unclear.
+    """
     classification = classify_intent_and_usecase(query)
     intent = classification.get("intent")
     use_case = classification.get("use_case")
 
-    # If Gemini can't find use case and we have past memory
-    if use_case == "Unclear" and get_last_use_case(session):
+    if use_case in ["unknown", "Unclear", None] and get_last_use_case(session):
         use_case = get_last_use_case(session)
 
     return intent, use_case
