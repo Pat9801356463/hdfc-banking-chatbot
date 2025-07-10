@@ -2,13 +2,21 @@
 
 import streamlit as st
 import pandas as pd
+
 from utils.session_manager import load_user_session
 from utils.context_tracker import update_context_with_memory
 from utils.rag_engine import load_documents_for_use_case
 from utils.response_generator import generate_final_answer
+from utils.web_retriever import (
+    get_rbi_latest_circulars,
+    get_rbi_interest_rates,
+    get_hdfc_credit_cards,
+    format_circulars,
+    format_credit_cards,
+    format_interest_rates,
+)
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
-
 st.title("🏦 HDFC Banking Assistant (Gemini-Powered)")
 st.markdown("Ask your banking-related queries. The assistant understands intent, loads relevant context, and answers via Gemini.")
 
@@ -34,7 +42,7 @@ if "session_data" in st.session_state:
         # Step 1: Infer intent and use case using memory-aware context tracker
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Load relevant context
+        # Step 2: Load context based on use case or web tools
         if use_case in [
             "Investment (non-sharemarket)",
             "Documentation & Process Query",
@@ -75,6 +83,18 @@ if "session_data" in st.session_state:
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
+        elif "RBI Circular" in query:
+            circulars = get_rbi_latest_circulars()
+            context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
+
+        elif "interest rate" in query.lower():
+            rates = get_rbi_interest_rates()
+            context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
+
+        elif "credit card" in query.lower():
+            cards = get_hdfc_credit_cards()
+            context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
+
         else:
             context = "❓ No context available for this use case."
 
@@ -100,3 +120,4 @@ if "chat_history" in st.session_state:
             st.write(item["query"])
         with st.chat_message("assistant"):
             st.markdown(item["response"])
+
