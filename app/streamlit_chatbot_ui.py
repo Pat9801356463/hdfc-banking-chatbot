@@ -1,4 +1,3 @@
-# ✅ Prioritize web_retriever first for context
 # app/streamlit_chatbot_ui.py
 
 import streamlit as st
@@ -48,7 +47,10 @@ if "session_data" in st.session_state:
         # Step 2: Prefer WebRetriever if it applies
         if "credit card" in query.lower():
             cards = get_hdfc_credit_cards()
-            context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
+            if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+            else:
+                context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
 
         elif "rbi circular" in query.lower():
             circulars = get_rbi_latest_circulars()
@@ -56,7 +58,10 @@ if "session_data" in st.session_state:
 
         elif "interest rate" in query.lower():
             rates = get_rbi_interest_rates()
-            context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
+            if any("http" in v for v in rates.values()):
+                context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+            else:
+                context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
 
         # Step 3: If not a web use-case, fallback to use-case handling
         elif use_case in [
@@ -94,7 +99,7 @@ if "session_data" in st.session_state:
                 context = (
                     f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
                     f"✅ A fraud complaint has been raised.\n"
-                    f"🆔 Ticket ID: {ticket_id}"
+                    f"🆚 Ticket ID: {ticket_id}"
                 )
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
@@ -102,7 +107,10 @@ if "session_data" in st.session_state:
         else:
             # Fallback to Gemini-based URL resolution
             link_response = resolve_link_via_gemini(query)
-            context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
+            if link_response.startswith("http"):
+                context = f"🔗 Please refer to the following resource: {link_response}"
+            else:
+                context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
         # Step 4: Generate Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
