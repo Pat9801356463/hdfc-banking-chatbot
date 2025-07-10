@@ -1,6 +1,7 @@
 # app/utils/gemini_url_resolver.py
 
 import os
+import time
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -11,7 +12,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# -- Static fallback links
+# Optional fallback links (static)
 KNOWN_LINKS = {
     "kyc update": "https://instaservices.hdfcbank.com/?journey=116",
     "mobile update": "https://instaservices.hdfcbank.com/?journey=105",
@@ -23,34 +24,36 @@ KNOWN_LINKS = {
 }
 
 
-def extract_relevant_url_from_query(query: str) -> dict:
+def extract_relevant_url_from_query(query: str, retries: int = 3, delay: float = 2.0) -> dict:
     prompt = f"""
 You are an intelligent assistant for HDFC Bank.
-A user has asked the following query: "{query}"
 
-From your knowledge or public information, return the most relevant official link from HDFC Bank or RBI to help them.
+The user asked: "{query}"
 
-Respond strictly in the format below:
-Title: <title of the link>
-URL: <valid https:// link>
+Return the best official HDFC-related URL, if possible.
 
-If you cannot determine any good match, say:
-Title: None
-URL: None
+Format:
+Title: <title>
+URL: <url>
 """
-    try:
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        lines = text.splitlines()
-        result = {"title": None, "url": None}
-        for line in lines:
-            if line.lower().startswith("title:"):
-                result["title"] = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("url:"):
-                result["url"] = line.split(":", 1)[1].strip()
-        return result
-    except Exception as e:
-        return {"title": "Error", "url": f"Gemini API error: {e}"}
+    for attempt in range(retries):
+        try:
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            result = {"title": None, "url": None}
+            for line in text.splitlines():
+                if line.lower().startswith("title:"):
+                    result["title"] = line.split(":", 1)[1].strip()
+                elif line.lower().startswith("url:"):
+                    result["url"] = line.split(":", 1)[1].strip()
+            return result
+        except Exception as e:
+            # Retry on transient or quota errors
+            if "429" in str(e) or "503" in str(e):
+                time.sleep(delay * (attempt + 1))
+                continue
+            return {"title": "Error", "url": f"Gemini API error: {e}"}
+    return {"title": "Error", "url": "Gemini API failed after retries."}
 
 
 def fallback_from_known_links(query: str) -> dict:
@@ -61,21 +64,24 @@ def fallback_from_known_links(query: str) -> dict:
 
 
 def get_best_url_for_query(query: str) -> dict:
-    result = extract_relevant_url_from_query(query)
-    if not result["url"] or result["url"].lower() == "none":
+    gemini_result = extract_relevant_url_from_query(query)
+    if not gemini_result["url"] or gemini_result["url"].lower() == "none":
         return fallback_from_known_links(query)
-    return result
+    return gemini_result
 
 
-def resolve_link_via_gemini(query: str) -> str:
-    """Used by other modules like web_retriever.py"""
-    result = get_best_url_for_query(query)
-    if result["title"] and result["url"]:
-        return f"Here is the link for **{result['title']}**: [Click here]({result['url']})"
+def format_url_response(data: dict) -> str:
+    if data["title"] and data["url"] and data["url"].startswith("http"):
+        return f"Here is the link for **{data['title']}**: [Click here]({data['url']})"
     return "❌ No relevant official link found. Please refine your question."
 
 
-# --- Manual test
+# Handy alias
+def resolve_link_via_gemini(query: str) -> str:
+    return format_url_response(get_best_url_for_query(query))
+
+
+# Test
 if __name__ == "__main__":
-    q = input("🔎 Ask something: ")
+    q = input("Ask something: ")
     print(resolve_link_via_gemini(q))
