@@ -1,4 +1,4 @@
-# ✅ Updated Streamlit UI for Gemini Banking Chatbot
+# ✅ Prioritize web_retriever first for context
 # app/streamlit_chatbot_ui.py
 
 import streamlit as st
@@ -45,8 +45,21 @@ if "session_data" in st.session_state:
         # Step 1: Infer intent and use case using memory-aware context tracker
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Load relevant context based on use case or pattern
-        if use_case in [
+        # Step 2: Prefer WebRetriever if it applies
+        if "credit card" in query.lower():
+            cards = get_hdfc_credit_cards()
+            context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
+
+        elif "rbi circular" in query.lower():
+            circulars = get_rbi_latest_circulars()
+            context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
+
+        elif "interest rate" in query.lower():
+            rates = get_rbi_interest_rates()
+            context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
+
+        # Step 3: If not a web use-case, fallback to use-case handling
+        elif use_case in [
             "Investment (non-sharemarket)",
             "Documentation & Process Query",
             "Loan Prepurchase Query",
@@ -86,27 +99,15 @@ if "session_data" in st.session_state:
             else:
                 context = "⚠️ No recent transactions found to raise a fraud complaint. Please check your transaction history first."
 
-        elif "rbi circular" in query.lower():
-            circulars = get_rbi_latest_circulars()
-            context = "Here are the latest RBI circulars:\n" + format_circulars(circulars)
-
-        elif "interest rate" in query.lower():
-            rates = get_rbi_interest_rates()
-            context = "Here are the latest interest rates from RBI:\n" + format_interest_rates(rates)
-
-        elif "credit card" in query.lower():
-            cards = get_hdfc_credit_cards()
-            context = "Here are some popular HDFC credit cards:\n" + format_credit_cards(cards)
-
         else:
             # Fallback to Gemini-based URL resolution
             link_response = resolve_link_via_gemini(query)
             context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
-        # Step 3: Generate Gemini Response
+        # Step 4: Generate Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Log interaction in memory
+        # Step 5: Log interaction in memory
         memory_entry = {
             "query": query,
             "intent": intent,
@@ -125,4 +126,3 @@ if "chat_history" in st.session_state:
             st.write(item["query"])
         with st.chat_message("assistant"):
             st.markdown(item["response"])
-
