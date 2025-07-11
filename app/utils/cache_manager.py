@@ -15,6 +15,7 @@ SIMILARITY_THRESHOLD = 0.85
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Public use cases that qualify for global caching
+
 PUBLIC_USE_CASES = {
     "Documentation & Process Query",
     "KYC & Details Update",
@@ -27,10 +28,9 @@ PUBLIC_USE_CASES = {
 
 def is_public_query(intent, use_case):
     """
-    Returns True if the query is public and safe for global caching.
+    Determines whether a query is public and eligible for global caching.
     """
     return use_case in PUBLIC_USE_CASES
-
 class GlobalCache:
     _cache = OrderedDict()
 
