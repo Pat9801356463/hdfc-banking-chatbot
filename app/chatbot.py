@@ -1,4 +1,4 @@
-# 🔄 Updated chatbot.py with global cache integration
+# app/chatbot.py
 
 from utils.session_manager import load_user_session
 from utils.context_tracker import update_context_with_memory
@@ -14,24 +14,8 @@ from utils.web_retriever import (
     resolve_link_via_gemini,
 )
 from utils.cohere_helper import classify_intent_usecase_cohere
-from utils.cache_manager import GlobalCache
+from utils.cache_manager import GlobalCache, is_public_query
 import pandas as pd
-
-# Initialize global public query cache
-global_cache = GlobalCache()
-
-# Basic classifier for public info use cases
-def is_public_query(use_case):
-    public_usecases = [
-        "Documentation & Process Query",
-        "KYC & Details Update",
-        "Banking Norms",
-        "Download Statement & Document",
-        "Mutual Funds & Tax Benefits",
-        "Loan Prepurchase Query",
-        "Investment (non-sharemarket)"
-    ]
-    return use_case in public_usecases
 
 def main():
     print("🟢 Welcome to the HDFC Banking Assistant\n")
@@ -58,29 +42,30 @@ def main():
         print(f"🧠 Intent: {intent}")
         print(f"📂 Use Case: {use_case}")
 
-        # Step 2: Check cache for public queries
-        context = None
-        if is_public_query(use_case):
-            cached = global_cache.get(query)
-            if cached:
+        # Step 2: Global Cache (for public queries only)
+        cached_response = None
+        if is_public_query(intent, use_case):
+            cached_response = GlobalCache.get(query)
+            if cached_response:
                 print("⚡ Response served from cache!")
-                print(f"\n🤖 {cached}\n")
+                print(f"\n🤖 {cached_response}\n")
                 continue
 
         # Step 3: Try RAG
         try:
             context = load_documents_for_use_case(use_case)
             if "⚠️" in context or len(context.strip()) < 20:
-                raise ValueError("RAG context too weak")
-
+                raise ValueError("Weak RAG context")
         except Exception:
+            # Step 4: Fallback to Web Retriever
             try:
                 if use_case == "Transaction History":
                     context = session["transactions"].tail(5).to_string(index=False)
 
                 elif use_case == "Mutual Funds & Tax Benefits":
                     context = (
-                        "You have invested in ELSS and Tax Saver Mutual Funds. These are eligible for deductions under Section 80C. "
+                        "You have invested in ELSS and Tax Saver Mutual Funds. "
+                        "These are eligible for deductions under Section 80C. "
                         "We can help you calculate benefits or suggest tax-saving funds."
                     )
 
@@ -103,26 +88,36 @@ def main():
 
                 elif "rbi circulars" in query.lower():
                     circulars = get_rbi_latest_circulars()
-                    context = f"Here are the latest RBI circulars:\n{format_circulars(circulars)}"
+                    context = f"📜 Latest RBI Circulars:\n{format_circulars(circulars)}"
 
                 elif "credit card" in query.lower():
                     cards = get_hdfc_credit_cards()
-                    context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
+                    if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                        context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+                    else:
+                        context = f"💳 HDFC Credit Cards:\n{format_credit_cards(cards)}"
 
                 elif "interest rate" in query.lower():
                     rates = get_rbi_interest_rates()
-                    context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
+                    if any("http" in v for v in rates.values()):
+                        context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+                    else:
+                        context = f"📈 RBI Interest Rates:\n{format_interest_rates(rates)}"
 
                 else:
-                    context = resolve_link_via_gemini(query)
+                    link_response = resolve_link_via_gemini(query)
+                    if "http" in link_response:
+                        context = f"🔗 Please refer to the following resource: {link_response}"
+                    else:
+                        context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
             except Exception as e:
                 context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 4: Generate answer
+        # Step 5: Generate Gemini response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 5: Log memory
+        # Step 6: Log to memory
         session["memory"].append({
             "query": query,
             "intent": intent,
@@ -131,12 +126,13 @@ def main():
             "response": final_response
         })
 
-        # Step 6: Cache public queries
-        if is_public_query(use_case):
-            global_cache.add(query, final_response)
+        # Step 7: Cache public queries only
+        if is_public_query(intent, use_case):
+            GlobalCache.set(query, final_response)
 
         print(f"\n🤖 {final_response}\n")
 
+    # Session summary
     print("\n🗒️ Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
