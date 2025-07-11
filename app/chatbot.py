@@ -1,4 +1,4 @@
-# app/chatbot.py
+# 🔄 Updated chatbot.py with global cache integration
 
 from utils.session_manager import load_user_session
 from utils.context_tracker import update_context_with_memory
@@ -13,8 +13,25 @@ from utils.web_retriever import (
     format_interest_rates,
     resolve_link_via_gemini,
 )
-from utils.cohere_helper import classify_intent_usecase_cohere  # ⬅️ Cohere-based classifier
+from utils.cohere_helper import classify_intent_usecase_cohere
+from utils.cache_manager import GlobalCache
 import pandas as pd
+
+# Initialize global public query cache
+global_cache = GlobalCache()
+
+# Basic classifier for public info use cases
+def is_public_query(use_case):
+    public_usecases = [
+        "Documentation & Process Query",
+        "KYC & Details Update",
+        "Banking Norms",
+        "Download Statement & Document",
+        "Mutual Funds & Tax Benefits",
+        "Loan Prepurchase Query",
+        "Investment (non-sharemarket)"
+    ]
+    return use_case in public_usecases
 
 def main():
     print("🟢 Welcome to the HDFC Banking Assistant\n")
@@ -33,26 +50,30 @@ def main():
         if query.lower() in ['exit', 'quit']:
             break
 
-        # Step 1: Intent + Use Case classification using Cohere
+        # Step 1: Classify query
         classification = classify_intent_usecase_cohere(query)
         intent = classification.get("intent", "unknown")
         use_case = classification.get("use_case", "unknown")
-        session["memory"].append({"query": query, "intent": intent, "use_case": use_case})
 
         print(f"🧠 Intent: {intent}")
         print(f"📂 Use Case: {use_case}")
 
-        # Step 2: Context resolution
-        try:
-            context = None
+        # Step 2: Check cache for public queries
+        context = None
+        if is_public_query(use_case):
+            cached = global_cache.get(query)
+            if cached:
+                print("⚡ Response served from cache!")
+                print(f"\n🤖 {cached}\n")
+                continue
 
-            # Try RAG first
+        # Step 3: Try RAG
+        try:
             context = load_documents_for_use_case(use_case)
             if "⚠️" in context or len(context.strip()) < 20:
                 raise ValueError("RAG context too weak")
 
         except Exception:
-            # Step 2b: fallback to WebRetriever
             try:
                 if use_case == "Transaction History":
                     context = session["transactions"].tail(5).to_string(index=False)
@@ -86,40 +107,36 @@ def main():
 
                 elif "credit card" in query.lower():
                     cards = get_hdfc_credit_cards()
-                    if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
-                        context = f"🔗 Please refer to the official credit card page: {cards[0]}"
-                    else:
-                        context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
+                    context = f"HDFC Bank offers the following credit cards:\n{format_credit_cards(cards)}"
 
                 elif "interest rate" in query.lower():
                     rates = get_rbi_interest_rates()
-                    if any("http" in v for v in rates.values()):
-                        context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
-                    else:
-                        context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
+                    context = f"Latest RBI Interest Rates:\n{format_interest_rates(rates)}"
 
                 else:
-                    link_response = resolve_link_via_gemini(query)
-                    if link_response.startswith("http"):
-                        context = f"🔗 Please refer to the following resource: {link_response}"
-                    else:
-                        context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
+                    context = resolve_link_via_gemini(query)
 
             except Exception as e:
                 context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 3: Generate answer via Gemini
+        # Step 4: Generate answer
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Log memory with response
-        session["memory"][-1].update({
+        # Step 5: Log memory
+        session["memory"].append({
+            "query": query,
+            "intent": intent,
+            "use_case": use_case,
             "context": context[:500],
             "response": final_response
         })
 
-        print(f"\n🤖 {final_response}")
+        # Step 6: Cache public queries
+        if is_public_query(use_case):
+            global_cache.add(query, final_response)
 
-    # End summary
+        print(f"\n🤖 {final_response}\n")
+
     print("\n🗒️ Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
