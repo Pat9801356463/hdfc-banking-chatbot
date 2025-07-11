@@ -1,5 +1,4 @@
 # app/streamlit_chatbot_ui.py
-
 import streamlit as st
 import pandas as pd
 
@@ -14,8 +13,8 @@ from utils.web_retriever import (
     format_circulars,
     format_credit_cards,
     format_interest_rates,
-    resolve_link_via_gemini,
 )
+from utils.gemini_url_resolver import resolve_link_via_gemini
 from utils.cache_manager import GlobalCache, is_public_query
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
@@ -42,10 +41,10 @@ if "session_data" in st.session_state:
     if query:
         session = st.session_state.session_data
 
-        # Step 1: Classify
+        # Step 1: Intent + Use Case
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Check cache (only for public)
+        # Step 2: Global cache check for public queries
         cached = None
         if is_public_query(intent, use_case):
             cached = GlobalCache.get(query)
@@ -63,8 +62,6 @@ if "session_data" in st.session_state:
                     "Download Statement & Document"
                 ]:
                     context = load_documents_for_use_case(use_case)
-                    if "⚠️" in context or len(context.strip()) < 20:
-                        raise ValueError("Weak RAG")
 
                 elif use_case == "Transaction History":
                     context = session["transactions"].tail(5).to_string(index=False)
@@ -87,7 +84,7 @@ if "session_data" in st.session_state:
                         ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
                         context = (
                             f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                            f"✅ A fraud complaint has been raised.\n🆔 Ticket ID: {ticket_id}"
+                            f"✅ A fraud complaint has been raised.\n🅺 Ticket ID: {ticket_id}"
                         )
                     else:
                         context = "⚠️ No recent transactions found to raise a fraud complaint."
@@ -117,17 +114,17 @@ if "session_data" in st.session_state:
                     else:
                         context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
-                # Cache it if public
+                # Store in global cache if it's public and successful
                 if is_public_query(intent, use_case):
                     GlobalCache.set(query, context)
 
             except Exception as e:
                 context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 3: Generate response
+        # Step 3: Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Log interaction
+        # Step 4: Memory
         st.session_state.chat_history.append({
             "query": query,
             "intent": intent,
