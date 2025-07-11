@@ -11,8 +11,8 @@ from utils.web_retriever import (
     format_circulars,
     format_credit_cards,
     format_interest_rates,
-    resolve_link_via_gemini,
 )
+from utils.gemini_url_resolver import resolve_link_via_gemini  # ✅ Corrected import
 from utils.cohere_helper import classify_intent_usecase_cohere
 from utils.cache_manager import GlobalCache, is_public_query
 import pandas as pd
@@ -34,7 +34,7 @@ def main():
         if query.lower() in ['exit', 'quit']:
             break
 
-        # Step 1: Classify query
+        # Step 1: Classify query via Cohere
         classification = classify_intent_usecase_cohere(query)
         intent = classification.get("intent", "unknown")
         use_case = classification.get("use_case", "unknown")
@@ -42,7 +42,7 @@ def main():
         print(f"🧠 Intent: {intent}")
         print(f"📂 Use Case: {use_case}")
 
-        # Step 2: Global Cache (for public queries only)
+        # Step 2: Global Cache for public queries
         cached_response = None
         if is_public_query(intent, use_case):
             cached_response = GlobalCache.get(query)
@@ -55,16 +55,17 @@ def main():
         try:
             context = load_documents_for_use_case(use_case)
             if "⚠️" in context or len(context.strip()) < 20:
-                raise ValueError("Weak RAG context")
+                raise ValueError("Weak or irrelevant RAG context")
+
         except Exception:
-            # Step 4: Fallback to Web Retriever
+            # Step 4: Fallback to web retriever
             try:
                 if use_case == "Transaction History":
                     context = session["transactions"].tail(5).to_string(index=False)
 
                 elif use_case == "Mutual Funds & Tax Benefits":
                     context = (
-                        "You have invested in ELSS and Tax Saver Mutual Funds. "
+                        "📊 You have invested in ELSS and Tax Saver Mutual Funds. "
                         "These are eligible for deductions under Section 80C. "
                         "We can help you calculate benefits or suggest tax-saving funds."
                     )
@@ -114,10 +115,10 @@ def main():
             except Exception as e:
                 context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 5: Generate Gemini response
+        # Step 5: Generate response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 6: Log to memory
+        # Step 6: Save to memory
         session["memory"].append({
             "query": query,
             "intent": intent,
@@ -126,13 +127,13 @@ def main():
             "response": final_response
         })
 
-        # Step 7: Cache public queries only
+        # Step 7: Save to global cache if public
         if is_public_query(intent, use_case):
             GlobalCache.set(query, final_response)
 
         print(f"\n🤖 {final_response}\n")
 
-    # Session summary
+    # Session Summary
     print("\n🗒️ Session Summary:")
     for i, item in enumerate(session["memory"], 1):
         print(f"{i}. [{item['intent']}] {item['query']} → {item['response']}")
