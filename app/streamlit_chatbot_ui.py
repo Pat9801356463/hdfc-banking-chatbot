@@ -14,11 +14,12 @@ from utils.web_retriever import (
     format_interest_rates,
     resolve_link_via_gemini,
 )
+from utils.cache_manager import GlobalCache, is_public_query
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
 
-st.title("🏦 HDFC Banking Assistant (RAG + Cohere + Gemini)")
-st.markdown("Ask your banking-related queries. The assistant uses RAG, web data, and Gemini for accurate replies.")
+st.title("🏦 HDFC Banking Assistant (RAG + Cohere + Gemini + Cache)")
+st.markdown("Ask your banking-related queries. The assistant uses RAG, web data, Gemini, and caching for fast answers.")
 
 # --- User Login ---
 user_id = st.sidebar.text_input("👤 Enter User ID", value="001")
@@ -42,71 +43,82 @@ if "session_data" in st.session_state:
         # Step 1: Intent + Use Case
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: RAG + Web Retriever fallback
-        try:
-            if use_case in [
-                "Investment (non-sharemarket)",
-                "Documentation & Process Query",
-                "Loan Prepurchase Query",
-                "Banking Norms",
-                "KYC & Details Update",
-                "Download Statement & Document"
-            ]:
-                context = load_documents_for_use_case(use_case)
+        # Step 2: Global cache check for public queries
+        cached = None
+        if is_public_query(intent, use_case):
+            cached = GlobalCache.get(query)
 
-            elif use_case == "Transaction History":
-                context = session["transactions"].tail(5).to_string(index=False)
+        if cached:
+            context = cached
+        else:
+            try:
+                if use_case in [
+                    "Investment (non-sharemarket)",
+                    "Documentation & Process Query",
+                    "Loan Prepurchase Query",
+                    "Banking Norms",
+                    "KYC & Details Update",
+                    "Download Statement & Document"
+                ]:
+                    context = load_documents_for_use_case(use_case)
 
-            elif use_case == "Mutual Funds & Tax Benefits":
-                context = (
-                    "📊 You have invested in ELSS and Tax Saver Mutual Funds. Eligible under Section 80C.\n"
-                    "We can assist in tax-saving strategies."
-                )
+                elif use_case == "Transaction History":
+                    context = session["transactions"].tail(5).to_string(index=False)
 
-            elif use_case == "Fraud Complaint - Scenario":
-                last_txn_context = next(
-                    (mem["context"] for mem in reversed(session["memory"])
-                     if mem["use_case"] == "Transaction History"),
-                    None
-                )
-                if last_txn_context:
-                    txn_number = len([line for line in last_txn_context.strip().split("\n") if line])
-                    today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
-                    ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
+                elif use_case == "Mutual Funds & Tax Benefits":
                     context = (
-                        f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                        f"✅ A fraud complaint has been raised.\n🆔 Ticket ID: {ticket_id}"
+                        "📊 You have invested in ELSS and Tax Saver Mutual Funds. Eligible under Section 80C.\n"
+                        "We can assist in tax-saving strategies."
                     )
+
+                elif use_case == "Fraud Complaint - Scenario":
+                    last_txn_context = next(
+                        (mem["context"] for mem in reversed(session["memory"])
+                         if mem["use_case"] == "Transaction History"),
+                        None
+                    )
+                    if last_txn_context:
+                        txn_number = len([line for line in last_txn_context.strip().split("\n") if line])
+                        today_str = pd.Timestamp.today().strftime("%d-%m-%Y")
+                        ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
+                        context = (
+                            f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
+                            f"✅ A fraud complaint has been raised.\n🆚 Ticket ID: {ticket_id}"
+                        )
+                    else:
+                        context = "⚠️ No recent transactions found to raise a fraud complaint."
+
+                elif "rbi circulars" in query.lower():
+                    circulars = get_rbi_latest_circulars()
+                    context = f"📜 Latest RBI Circulars:\n{format_circulars(circulars)}"
+
+                elif "credit card" in query.lower():
+                    cards = get_hdfc_credit_cards()
+                    if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
+                        context = f"🔗 Please refer to the official credit card page: {cards[0]}"
+                    else:
+                        context = f"💳 HDFC Credit Cards:\n{format_credit_cards(cards)}"
+
+                elif "interest rate" in query.lower():
+                    rates = get_rbi_interest_rates()
+                    if any("http" in v for v in rates.values()):
+                        context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
+                    else:
+                        context = f"📈 RBI Interest Rates:\n{format_interest_rates(rates)}"
+
                 else:
-                    context = "⚠️ No recent transactions found to raise a fraud complaint."
+                    link_response = resolve_link_via_gemini(query)
+                    if "http" in link_response:
+                        context = f"🔗 Please refer to the following resource: {link_response}"
+                    else:
+                        context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
-            elif "rbi circulars" in query.lower():
-                circulars = get_rbi_latest_circulars()
-                context = f"📜 Latest RBI Circulars:\n{format_circulars(circulars)}"
+                # Store in global cache if it's public and successful
+                if is_public_query(intent, use_case):
+                    GlobalCache.set(query, context)
 
-            elif "credit card" in query.lower():
-                cards = get_hdfc_credit_cards()
-                if isinstance(cards, list) and len(cards) == 1 and cards[0].startswith("http"):
-                    context = f"🔗 Please refer to the official credit card page: {cards[0]}"
-                else:
-                    context = f"💳 HDFC Credit Cards:\n{format_credit_cards(cards)}"
-
-            elif "interest rate" in query.lower():
-                rates = get_rbi_interest_rates()
-                if any("http" in v for v in rates.values()):
-                    context = f"🔗 You can check RBI interest rates at: {list(rates.values())[0]}"
-                else:
-                    context = f"📈 RBI Interest Rates:\n{format_interest_rates(rates)}"
-
-            else:
-                link_response = resolve_link_via_gemini(query)
-                if "http" in link_response:
-                    context = f"🔗 Please refer to the following resource: {link_response}"
-                else:
-                    context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
-
-        except Exception as e:
-            context = f"⚠️ Failed to fetch relevant context due to: {e}"
+            except Exception as e:
+                context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
         # Step 3: Gemini Response
         final_response = generate_final_answer(query, context, session["name"])
