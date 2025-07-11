@@ -140,3 +140,4 @@ if "chat_history" in st.session_state:
             st.write(item["query"])
         with st.chat_message("assistant"):
             st.markdown(item["response"])
+
