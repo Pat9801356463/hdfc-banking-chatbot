@@ -1,3 +1,5 @@
+# app/streamlit_chatbot_ui.py
+
 import streamlit as st
 import pandas as pd
 
@@ -40,10 +42,10 @@ if "session_data" in st.session_state:
     if query:
         session = st.session_state.session_data
 
-        # Step 1: Intent + Use Case
+        # Step 1: Classify
         intent, use_case = update_context_with_memory(query, session)
 
-        # Step 2: Global cache check for public queries
+        # Step 2: Check cache (only for public)
         cached = None
         if is_public_query(intent, use_case):
             cached = GlobalCache.get(query)
@@ -61,6 +63,8 @@ if "session_data" in st.session_state:
                     "Download Statement & Document"
                 ]:
                     context = load_documents_for_use_case(use_case)
+                    if "⚠️" in context or len(context.strip()) < 20:
+                        raise ValueError("Weak RAG")
 
                 elif use_case == "Transaction History":
                     context = session["transactions"].tail(5).to_string(index=False)
@@ -83,7 +87,7 @@ if "session_data" in st.session_state:
                         ticket_id = f"{session['user_id']}-{today_str}-{txn_number:02}"
                         context = (
                             f"Based on your recent transaction history:\n\n{last_txn_context}\n\n"
-                            f"✅ A fraud complaint has been raised.\n🆚 Ticket ID: {ticket_id}"
+                            f"✅ A fraud complaint has been raised.\n🆔 Ticket ID: {ticket_id}"
                         )
                     else:
                         context = "⚠️ No recent transactions found to raise a fraud complaint."
@@ -113,17 +117,17 @@ if "session_data" in st.session_state:
                     else:
                         context = f"{link_response}\n\nIf this doesn't answer your question, please clarify further."
 
-                # Store in global cache if it's public and successful
+                # Cache it if public
                 if is_public_query(intent, use_case):
                     GlobalCache.set(query, context)
 
             except Exception as e:
                 context = f"⚠️ Failed to fetch relevant context due to: {e}"
 
-        # Step 3: Gemini Response
+        # Step 3: Generate response
         final_response = generate_final_answer(query, context, session["name"])
 
-        # Step 4: Memory
+        # Step 4: Log interaction
         st.session_state.chat_history.append({
             "query": query,
             "intent": intent,
@@ -140,4 +144,3 @@ if "chat_history" in st.session_state:
             st.write(item["query"])
         with st.chat_message("assistant"):
             st.markdown(item["response"])
-
