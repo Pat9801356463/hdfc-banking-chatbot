@@ -1,56 +1,85 @@
+# utils/cache_manager.py
+
 import os
 import json
 import hashlib
 from collections import OrderedDict
 from sentence_transformers import SentenceTransformer, util
 
+# Persistent file for cross-user public query cache
 CACHE_FILE = "data/query_cache.json"
-MAX_CACHE_SIZE = 50  # Tune based on memory/performance
-model = SentenceTransformer("all-MiniLM-L6-v2")  # Used for semantic deduplication
+MAX_CACHE_SIZE = 50
+SIMILARITY_THRESHOLD = 0.85
 
+# Sentence Transformer for semantic deduplication
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# --- Public Use Case Tags ---
+PUBLIC_USE_CASES = {
+    "Documentation & Process Query",
+    "KYC & Details Update",
+    "Download Statement & Document",
+    "Investment (non-sharemarket)",
+    "Banking Norms",
+    "Loan Prepurchase Query",
+    "Mutual Funds & Tax Benefits",
+}
+
+def is_public_query(intent, use_case):
+    """
+    Returns True if the query is classified as public (non-user-specific).
+    """
+    return use_case in PUBLIC_USE_CASES
+
+# --- Global Cache Class ---
 class GlobalCache:
-    def __init__(self):
-        self.cache = self._load_cache()
+    _cache = OrderedDict()
 
-    def _load_cache(self):
-        if os.path.exists(CACHE_FILE):
+    @classmethod
+    def _load(cls):
+        if not cls._cache and os.path.exists(CACHE_FILE):
             try:
                 with open(CACHE_FILE, "r") as f:
-                    return json.load(f, object_pairs_hook=OrderedDict)
+                    data = json.load(f, object_pairs_hook=OrderedDict)
+                    cls._cache = data
             except:
-                return OrderedDict()
-        return OrderedDict()
+                cls._cache = OrderedDict()
 
-    def _save_cache(self):
+    @classmethod
+    def _save(cls):
         with open(CACHE_FILE, "w") as f:
-            json.dump(self.cache, f)
+            json.dump(cls._cache, f)
 
-    def _hash(self, text):
-        return hashlib.sha256(text.encode()).hexdigest()
-
-    def _is_similar(self, query, threshold=0.85):
+    @classmethod
+    def _is_similar(cls, query):
+        """
+        Return a matching query key from cache if semantically similar.
+        """
         query_emb = model.encode(query, convert_to_tensor=True)
-        for cached_q in self.cache.keys():
-            cached_emb = model.encode(cached_q, convert_to_tensor=True)
-            sim_score = util.cos_sim(query_emb, cached_emb).item()
-            if sim_score >= threshold:
-                return cached_q  # Return matching query
+        for existing_q in cls._cache.keys():
+            cached_emb = model.encode(existing_q, convert_to_tensor=True)
+            score = util.cos_sim(query_emb, cached_emb).item()
+            if score >= SIMILARITY_THRESHOLD:
+                return existing_q
         return None
 
-    def get(self, query):
-        similar_query = self._is_similar(query)
-        if similar_query:
-            # Move to end to simulate LRU
-            self.cache.move_to_end(similar_query)
-            return self.cache[similar_query]
+    @classmethod
+    def get(cls, query):
+        cls._load()
+        match = cls._is_similar(query)
+        if match:
+            cls._cache.move_to_end(match)
+            return cls._cache[match]
         return None
 
-    def add(self, query, response):
-        if self._is_similar(query):
-            return  # Don't store duplicates
+    @classmethod
+    def set(cls, query, response):
+        cls._load()
+        if cls._is_similar(query):  # avoid storing duplicates
+            return
 
-        if len(self.cache) >= MAX_CACHE_SIZE:
-            self.cache.popitem(last=False)  # Remove oldest (LRU)
+        if len(cls._cache) >= MAX_CACHE_SIZE:
+            cls._cache.popitem(last=False)
 
-        self.cache[query] = response
-        self._save_cache()
+        cls._cache[query] = response
+        cls._save()
