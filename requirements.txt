@@ -1,15 +1,19 @@
-# Streamlit & UI
+# --- Streamlit & UI ---
 streamlit==1.46.1
 gradio==5.36.2
 gradio-client==1.10.4
-selenium
-# Core Utilities
+
+# --- Web Drivers & Browser Automation ---
+selenium==4.21.0
+webdriver-manager==4.0.1  # For automatic browser driver management
+
+# --- Core Utilities ---
 pandas==2.3.1
 numpy==2.3.1
 python-dotenv==1.1.1
 requests==2.32.4
 
-# Google Gemini
+# --- Google Gemini ---
 google-generativeai==0.5.2
 google-api-core==2.25.1
 google-auth==2.40.3
@@ -17,26 +21,32 @@ google-auth-httplib2==0.2.0
 google-api-python-client==2.176.0
 google-ai-generativelanguage==0.6.2
 
-# Cohere LLM (NEW)
+# --- Cohere LLM ---
 cohere==4.38
 
-# Web Scraping
+# --- Web Scraping ---
 beautifulsoup4==4.13.4
 lxml==6.0.0
 
-# Document Parsing
+# --- Document Parsing ---
 python-docx==1.2.0
 PyMuPDF==1.26.3
 openpyxl==3.1.5
 
-# Semantic Search & Embeddings
+# --- Semantic Search & Embeddings ---
 faiss-cpu==1.11.0
 sentence-transformers==5.0.0
 scikit-learn==1.7.0
 
-# Retry Utilities
+# --- Retry Utilities ---
 tenacity==9.1.2
 
-# Optional (performance/logging tools)
+# --- Optional (performance/logging/tools) ---
 protobuf==4.25.8
 rich==14.0.0
+
+# --- Schema Validation ---
+pydantic==2.7.1  # Validator agent support
+
+# --- Misc ---
+tqdm==4.66.4
