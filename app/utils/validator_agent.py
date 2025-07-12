@@ -1,20 +1,18 @@
 # utils/validator_agent.py
-
 import re
+import os
 
-MIN_TEXT_LENGTH = 300  # minimum chars to be considered informative
+MIN_TEXT_LENGTH = 300
 VALID_URL_PATTERN = re.compile(r"^https?://[\w./%-]+$")
 
+
+# -------------------- Basic Validators --------------------
+
 def is_valid_url(url: str) -> bool:
-    """
-    Checks whether the string is a valid URL.
-    """
     return isinstance(url, str) and bool(VALID_URL_PATTERN.match(url.strip()))
 
+
 def validate_links(links: list) -> list:
-    """
-    Ensures each link tuple has valid structure: (title, url)
-    """
     valid = []
     for link in links:
         if isinstance(link, tuple) and len(link) == 2:
@@ -23,23 +21,16 @@ def validate_links(links: list) -> list:
                 valid.append((title.strip(), url.strip()))
     return valid
 
+
 def validate_text(text: str) -> bool:
-    """
-    Returns True if text has enough meaningful content.
-    """
     return isinstance(text, str) and len(text.strip()) >= MIN_TEXT_LENGTH
 
+
 def validate_table_text(tables: str) -> bool:
-    """
-    Very basic check for table structure: presence of delimiters or row patterns.
-    """
     return isinstance(tables, str) and ("|" in tables or "\n" in tables)
 
+
 def validate_scraped_data(scraped: dict) -> dict:
-    """
-    Given the `smart_scrape` result from `scraper_agent.py`, returns
-    a validated and cleaned version. Empty sections are removed.
-    """
     valid_data = {}
 
     if "text" in scraped and validate_text(scraped["text"]):
@@ -55,20 +46,71 @@ def validate_scraped_data(scraped: dict) -> dict:
 
     return valid_data
 
+
 def is_valid_response(scraped: dict) -> bool:
-    """
-    Final check before caching or using scraped response.
-    Returns True if at least one valid section exists.
-    """
     validated = validate_scraped_data(scraped)
     return bool(validated)
 
-# --- Optional test block
-if __name__ == "__main__":
-    test = {
-        "text": "Short text.",
-        "tables": "Label | Value\n---- | ----\nA | B",
-        "links": [("RBI Circular", "https://rbi.org.in/link")]
-    }
-    print("✅ Validated:", validate_scraped_data(test))
-    print("✔️ Is valid response?", is_valid_response(test))
+
+# -------------------- Use Case Schema Validation --------------------
+
+def validate_schema_against_usecase(use_case: str, scraped: dict) -> bool:
+    """
+    Check if scraped data satisfies minimum schema based on use case.
+    You can fine-tune expected schema per use case.
+    """
+    use_case = use_case.lower()
+
+    if "kyc" in use_case or "documentation" in use_case:
+        return "links" in scraped and len(scraped["links"]) > 0
+
+    elif "interest" in use_case or "rates" in use_case:
+        return "tables" in scraped or "text" in scraped
+
+    elif "rbi" in use_case or "circulars" in use_case:
+        return "links" in scraped
+
+    elif "credit card" in use_case:
+        return "text" in scraped or "links" in scraped
+
+    elif "mutual fund" in use_case:
+        return "tables" in scraped or "text" in scraped
+
+    return is_valid_response(scraped)
+
+
+# -------------------- Source Classification --------------------
+
+def extract_metadata_type(scraped: dict) -> str:
+    """
+    Tags whether source is RBI or HDFC based on text/links.
+    """
+    text = scraped.get("text", "").lower()
+    links = [url.lower() for _, url in scraped.get("links", [])]
+
+    if "rbi.org.in" in text or any("rbi.org.in" in l for l in links):
+        return "RBI"
+
+    if "hdfcbank.com" in text or any("hdfcbank.com" in l for l in links):
+        return "HDFC"
+
+    return "Unknown"
+
+
+# -------------------- Scrape Logging (Optional) --------------------
+
+def log_invalid_payload(query: str, html: str, save_dir="logs/bad_scrapes"):
+    """
+    Dumps HTML of failed scrape for debugging.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    file_name = re.sub(r'\W+', '_', query.lower())[:40]
+    file_path = os.path.join(save_dir, f"{file_name}.html")
+
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"<!-- Query: {query} -->\n\n")
+            f.write(html)
+        print(f"[🛠️ Debug] Saved bad scrape HTML to: {file_path}")
+    except Exception as e:
+        print(f"[⚠️ Logging Failed] {e}")
