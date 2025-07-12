@@ -15,7 +15,12 @@ def orchestrate_agents(query, use_case, user_name="Customer"):
     """
     print(f"\n[Agent Pipeline] Starting agent chain for query: '{query}'")
     
-    tools = plan_tools_for_query(query)
+   from utils.cache_manager import is_public_query
+    if is_public_query(query):
+        tools = plan_tools_for_query(query)
+    else:
+        tools = ["none"]  # Force RAG for internal/private banking queries
+
     print(f"[Planner] Toolchain: {tools}")
 
     # Special case: No tools required — use RAG directly
