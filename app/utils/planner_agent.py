@@ -1,8 +1,11 @@
+# utils/planner_agent.py
+
 import os
 from dotenv import load_dotenv
 from utils.gemini_helper import safe_generate_content
 import google.generativeai as genai
 
+# Load environment variables
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 gemini = genai.GenerativeModel("gemini-1.5-flash")
@@ -15,7 +18,6 @@ def plan_tools_for_query(query: str) -> list:
 
     'none' means no external tools are required.
     """
-
     prompt = f"""
 You are a planning agent in a banking assistant system.
 Given the user query, select a logical sequence of tools that should be used.
@@ -58,3 +60,11 @@ Now answer for:
         print(f"[Planner Error] {e}")
 
     return ["none"]  # Fallback if planner fails
+
+
+def plan_next_action(query, intent=None, use_case=None):
+    """
+    Backward-compatible wrapper to return just the first tool.
+    """
+    tools = plan_tools_for_query(query)
+    return tools[0] if tools else "none"
