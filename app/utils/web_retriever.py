@@ -1,6 +1,10 @@
+# utils/web_retriever.py
+
 import requests
 from bs4 import BeautifulSoup
-from utils.gemini_url_resolver import resolve_link_via_gemini  # Now Cohere-first
+from utils.gemini_url_resolver import resolve_link_via_gemini  # Cohere-first now
+from utils.scraper_agent import smart_scrape  # Required for run_scraper
+
 
 # 📄 Get latest RBI circulars
 def get_rbi_latest_circulars(limit=5):
@@ -20,6 +24,7 @@ def get_rbi_latest_circulars(limit=5):
         return circulars
     except Exception as e:
         return [("⚠️ Failed to retrieve RBI circulars", str(e))]
+
 
 # 💳 Get HDFC credit card names or link
 def get_hdfc_credit_cards(limit=5):
@@ -49,6 +54,7 @@ def get_hdfc_credit_cards(limit=5):
     except Exception as e:
         return [f"⚠️ Failed to retrieve HDFC credit cards: {e}"]
 
+
 # 📈 Get RBI interest rates or fallback link
 def get_rbi_interest_rates():
     try:
@@ -76,12 +82,26 @@ def get_rbi_interest_rates():
     except Exception as e:
         return {"⚠️ Error": str(e)}
 
+
 # 🧾 Formatting functions
 def format_circulars(circulars):
     return "\n".join([f"- [{title}]({url})" for title, url in circulars])
 
+
 def format_credit_cards(cards):
     return "\n".join([f"- {name}" for name in cards])
 
+
 def format_interest_rates(rates):
     return "\n".join([f"- {k}: {v}" for k, v in rates.items()])
+
+
+# 🔁 Scraper bridge for orchestrator
+def run_scraper(html: str) -> dict:
+    """
+    Wrapper for smart_scrape to be used in orchestrator.
+    """
+    try:
+        return smart_scrape(html)
+    except Exception as e:
+        return {"error": f"⚠️ Scraper failed: {e}"}
