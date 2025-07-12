@@ -1,18 +1,17 @@
 # utils/agent_orchestrator.py
 
 from utils.planner_agent import plan_tools_for_query
-from utils.searcher_agent import search_with_google
+from utils.searcher_agent import search_web
 from utils.navigator_agent import navigate_and_capture
 from utils.web_retriever import run_scraper
 from utils.validator_agent import validate_schema_against_usecase, extract_metadata_type
 from utils.response_generator import generate_final_answer
 from utils.cache_manager import GlobalCache
 
-
-def handle_query_with_agents(query, use_case, user_name="Customer"):
+def orchestrate_agents(query, use_case, user_name="Customer"):
     """
-    Full agent pipeline with tool chaining:
-    Planner → Searcher → Navigator → Scraper → Validator → Cache
+    Full agent pipeline:
+    Planner → Searcher → Navigator → Scraper → Validator → Cache + Response
     """
     print("\n[Agent Pipeline] Starting agent chain for:", query)
 
@@ -28,10 +27,10 @@ def handle_query_with_agents(query, use_case, user_name="Customer"):
     try:
         for tool in tools:
             if tool == "search":
-                search_results = search_with_google(query)
-                if not search_results:
+                search_results = search_web(query)
+                if not search_results or search_results[0][1] == "":
                     return "⚠️ No relevant search results found."
-                top_link = search_results[0]['link']
+                top_link = search_results[0][1]
                 print(f"[Searcher] Top link: {top_link}")
 
             elif tool == "navigate":
@@ -58,17 +57,17 @@ def handle_query_with_agents(query, use_case, user_name="Customer"):
                 print("[Validator] Schema validated ✅")
 
             elif tool == "link_resolver":
-                return "🔗 Try our official page: [Link resolving not yet implemented in chain]"
+                return "🔗 Tool not implemented yet. Try using Gemini link resolver directly."
 
             elif tool == "none":
-                return "⚠️ No tools required. Try checking the RAG or cache pipeline."
+                print("ℹ️ Planner chose no tools — skipping agent pipeline.")
+                return "NO_OP"
 
-        # Final generation if scraping & validation succeeded
         if scraped:
             final_response = generate_final_answer(query, scraped, user_name=user_name)
             source = extract_metadata_type(scraped)
 
-            # Cache result
+            # Cache it
             GlobalCache.set(
                 query=query,
                 response=final_response,
@@ -78,7 +77,8 @@ def handle_query_with_agents(query, use_case, user_name="Customer"):
             )
             return final_response
 
-        return "⚠️ Something went wrong in the agent pipeline."
+        return "⚠️ Agent pipeline completed but no response could be generated."
 
     except Exception as e:
-        return f"❌ Agent chain crashed: {e}"
+        return f"❌ Agent pipeline crashed: {e}"
+
