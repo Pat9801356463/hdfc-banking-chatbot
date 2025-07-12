@@ -1,7 +1,51 @@
+# === Environment & Secrets ===
 .env
+*.env
+
+# === Python Artifacts ===
 __pycache__/
-*.pyc
-*.pkl
-*.zip
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+dist/
+build/
+
+# === Jupyter Notebooks ===
 .ipynb_checkpoints/
+
+# === System Files ===
 .DS_Store
+Thumbs.db
+
+# === IDE Settings ===
+.vscode/
+.idea/
+
+# === Data, Logs & Cache ===
+data/query_cache.json
+data/tmp/
+logs/
+*.log
+
+# === Selenium Artifacts ===
+*.crdownload
+selenium-screenshots/
+
+# === Model Checkpoints (if any in future) ===
+*.pt
+*.ckpt
+*.h5
+
+# === Packaging ===
+*.tar.gz
+*.whl
+
+# === Misc ===
+*.bak
+*.old
+*.orig
+*.swp
+*.lock
