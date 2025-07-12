@@ -1,9 +1,7 @@
-# --- Streamlit & UI ---
+# --- UI & Interaction ---
 streamlit==1.46.1
-gradio==5.36.2
-gradio-client==1.10.4
 
-# --- Web Drivers & Browser Automation ---
+# --- Browser Automation (Navigator Agent) ---
 selenium==4.21.0
 webdriver-manager==4.0.1
 
@@ -13,37 +11,29 @@ numpy==2.3.1
 python-dotenv==1.1.1
 requests==2.32.4
 
-# --- Google Gemini ---
+# --- LLM APIs ---
 google-generativeai==0.5.2
-google-api-core==2.25.1
-google-auth==2.40.3
-google-auth-httplib2==0.2.0
-google-api-python-client==2.176.0
-google-ai-generativelanguage==0.6.2
-
-# --- Cohere LLM ---
 cohere==4.38
 
 # --- Web Scraping ---
 beautifulsoup4==4.13.4
 lxml==6.0.0
 
-# --- Document Parsing ---
+# --- File Parsing ---
 python-docx==1.2.0
 PyMuPDF==1.26.3
 openpyxl==3.1.5
 
-# --- Semantic Search & Embeddings ---
-sentence-transformers==5.0.0
+# --- Embedding & Similarity (Global Cache) ---
+sentence-transformers==2.6.1
 scikit-learn==1.7.0
-# 💡 FAISS often fails on cloud. Use only locally.
-# faiss-cpu==1.11.0
 
 # --- Retry & Logging ---
 tenacity==9.1.2
 rich==14.0.0
-tqdm==4.66.4
 
-# --- Schema Validation for Validator Agent ---
+# --- Schema Validation (✅ Compatible) ---
 pydantic==1.10.15
 
+# --- Optional ---
+tqdm==4.66.4
