@@ -12,74 +12,83 @@ def orchestrate_agents(query, use_case, user_name="Customer"):
     """
     Full agent pipeline:
     Planner → Searcher → Navigator → Scraper → Validator → Cache + Response
-    Falls back to RAG only if toolchain is 'none'
     """
-    print("\n[Agent Pipeline] Starting agent chain for:", query)
-
+    print(f"\n[Agent Pipeline] Starting agent chain for query: '{query}'")
+    
     tools = plan_tools_for_query(query)
-    print(f"[Planner] Toolchain decided: {tools}")
+    print(f"[Planner] Toolchain: {tools}")
 
+    # Special case: No tools required — use RAG directly
+    if tools == ["none"]:
+        print("[Planner] No tools required — using RAG.")
+        rag_context = load_documents_for_use_case(use_case)
+        if "⚠️" in rag_context or not rag_context.strip():
+            return "⚠️ No relevant documents found for your query."
+        return generate_final_answer(query, rag_context, user_name=user_name)
+
+    # Prepare variables
     search_results = None
     html_content = None
     scraped = None
+    context = None
     top_link = None
+    schema_validated = False
 
     try:
-        # Use full agent pipeline only if tools include real web tasks
-        if any(tool in tools for tool in ["search", "navigate", "scrape", "validate"]):
-            for tool in tools:
-                if tool == "search":
-                    search_results = search_web(query)
-                    if not search_results or not search_results[0][1]:
-                        return "⚠️ No relevant search results found."
-                    top_link = search_results[0][1]
-                    print(f"[Searcher] Top link: {top_link}")
+        for tool in tools:
+            if tool == "search":
+                search_results = search_web(query)
+                if not search_results or search_results[0][1] == "":
+                    return "⚠️ No relevant search results found."
+                top_link = search_results[0][1]
+                print(f"[Searcher] Top link: {top_link}")
 
-                elif tool == "navigate":
-                    if not top_link:
-                        return "⚠️ Cannot navigate: No link available."
-                    html_content = navigate_and_capture(top_link)
-                    if not html_content:
-                        return "⚠️ Failed to capture page content."
-                    print("[Navigator] HTML captured.")
+            elif tool == "navigate":
+                if not top_link:
+                    return "⚠️ Cannot navigate: No link available."
+                html_content = navigate_and_capture(top_link)
+                if not html_content:
+                    return "⚠️ Failed to capture page content."
+                print("[Navigator] HTML captured.")
 
-                elif tool == "scrape":
-                    if not html_content:
-                        return "⚠️ No HTML to scrape."
-                    scraped = run_scraper(html_content)
-                    if not scraped:
-                        return "⚠️ Scraping failed or returned empty data."
-                    print("[Scraper] Data extracted.")
+            elif tool == "scrape":
+                if not html_content:
+                    return "⚠️ No HTML to scrape."
+                scraped = run_scraper(html_content)
+                if not scraped:
+                    return "⚠️ Scraping failed or returned empty data."
+                print("[Scraper] Data extracted.")
 
-                elif tool == "validate":
-                    if not scraped:
-                        return "⚠️ Nothing to validate."
-                    if not validate_schema_against_usecase(use_case, scraped):
-                        return "⚠️ Retrieved data didn't match expected format."
+            elif tool == "validate":
+                if not scraped:
+                    return "⚠️ Nothing to validate."
+                schema_validated = validate_schema_against_usecase(use_case, scraped)
+                if not schema_validated:
+                    print("⚠️ Schema mismatch — falling back to RAG.")
+                else:
                     print("[Validator] Schema validated ✅")
 
-            if scraped:
-                final_response = generate_final_answer(query, scraped, user_name=user_name)
-                source = extract_metadata_type(scraped)
-                GlobalCache.set(query, final_response, source, use_case, validated=True)
-                return final_response
+        # If scraping worked and schema is validated → generate final answer
+        if scraped and schema_validated:
+            final_response = generate_final_answer(query, scraped, user_name=user_name)
+            source = extract_metadata_type(scraped)
 
-            return "⚠️ No relevant information extracted. Try rephrasing your query."
-
-        # If planner returns only "none" → fallback to RAG
-        elif tools == ["none"]:
-            print("[Fallback] Using RAG documents for this query.")
-            rag_context = load_documents_for_use_case(use_case)
-            if "⚠️" in rag_context or not rag_context.strip():
-                return "⚠️ No relevant RAG documents found for this use case."
-
-            final_response = generate_final_answer(query, rag_context, user_name=user_name)
-            GlobalCache.set(query, final_response, "Docs", use_case, validated=False)
+            # Cache the result
+            GlobalCache.set(
+                query=query,
+                response=final_response,
+                source=source,
+                use_case=use_case,
+                validated=True
+            )
             return final_response
 
-        # Toolchain is malformed or incomplete
-        else:
-            return "⚠️ No valid tools selected and no fallback triggered."
+        # If agent toolchain fails or schema not validated → fallback to RAG
+        print("[Fallback] Falling back to RAG document context.")
+        rag_context = load_documents_for_use_case(use_case)
+        if "⚠️" in rag_context or not rag_context.strip():
+            return "⚠️ No retrievable RAG content for this use case."
+        return generate_final_answer(query, rag_context, user_name=user_name)
 
     except Exception as e:
         return f"❌ Agent pipeline crashed: {e}"
