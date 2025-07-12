@@ -3,18 +3,15 @@
 import os
 import json
 import hashlib
+from datetime import datetime
 from collections import OrderedDict
 from sentence_transformers import SentenceTransformer, util
 
-# File path for persistent cache
 CACHE_FILE = "data/query_cache.json"
 MAX_CACHE_SIZE = 50
 SIMILARITY_THRESHOLD = 0.85
 
-# Load semantic similarity model
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# Public use cases that qualify for global caching
 
 PUBLIC_USE_CASES = {
     "Documentation & Process Query",
@@ -26,11 +23,11 @@ PUBLIC_USE_CASES = {
     "Mutual Funds & Tax Benefits",
 }
 
+
 def is_public_query(intent, use_case):
-    """
-    Determines whether a query is public and eligible for global caching.
-    """
     return use_case in PUBLIC_USE_CASES
+
+
 class GlobalCache:
     _cache = OrderedDict()
 
@@ -40,20 +37,16 @@ class GlobalCache:
             try:
                 with open(CACHE_FILE, "r") as f:
                     cls._cache = json.load(f, object_pairs_hook=OrderedDict)
-            except:
+            except Exception:
                 cls._cache = OrderedDict()
 
     @classmethod
     def _save(cls):
         with open(CACHE_FILE, "w") as f:
-            json.dump(cls._cache, f)
+            json.dump(cls._cache, f, indent=2)
 
     @classmethod
     def _is_similar(cls, query):
-        """
-        Checks if a semantically similar query exists in cache.
-        Returns matching query key if found.
-        """
         query_emb = model.encode(query, convert_to_tensor=True)
         for cached_q in cls._cache.keys():
             cached_emb = model.encode(cached_q, convert_to_tensor=True)
@@ -64,27 +57,42 @@ class GlobalCache:
 
     @classmethod
     def get(cls, query):
-        """
-        Returns cached response for a semantically similar query.
-        """
         cls._load()
         match = cls._is_similar(query)
         if match:
-            cls._cache.move_to_end(match)  # simulate LRU
+            cls._cache.move_to_end(match)
+            return cls._cache[match]["response"]
+        return None
+
+    @classmethod
+    def get_metadata(cls, query):
+        cls._load()
+        match = cls._is_similar(query)
+        if match:
             return cls._cache[match]
         return None
 
     @classmethod
-    def set(cls, query, response):
-        """
-        Stores new query-response if not semantically similar to existing entries.
-        """
+    def set(cls, query, response, source="Unknown", use_case=None, validated=False):
         cls._load()
         if cls._is_similar(query):
-            return  # avoid duplicates
+            return
 
         if len(cls._cache) >= MAX_CACHE_SIZE:
-            cls._cache.popitem(last=False)  # remove least-recently used
+            cls._cache.popitem(last=False)
 
-        cls._cache[query] = response
+        cls._cache[query] = {
+            "query": query,
+            "response": response,
+            "source": source,
+            "use_case": use_case,
+            "validated": validated,
+            "timestamp": datetime.now().isoformat()
+        }
         cls._save()
+
+    @classmethod
+    def list_recent(cls, n=5):
+        cls._load()
+        return list(cls._cache.items())[-n:]
+
