@@ -5,7 +5,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 # Local imports
-from app.debug_logger import get_logs
+from utils.debug_logger import get_logs
 from utils.rag_engine import load_documents_for_use_case, USECASE_DOC_PATHS
 from utils.intent_mapper import classify_intent_and_usecase
 from utils.session_manager import load_user_session
