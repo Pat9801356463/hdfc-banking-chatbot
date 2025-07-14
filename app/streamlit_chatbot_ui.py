@@ -1,72 +1,99 @@
-# app/streamlit_chatbot_ui.py
-
 import streamlit as st
-from utils.response_generator import generate_final_answer
-from utils.cache_manager import GlobalCache, is_public_query
+from dotenv import load_dotenv
+
+from utils.context_tracker import update_context_with_memory
 from utils.rag_engine import load_documents_for_use_case, find_best_document
+from utils.response_generator import generate_final_answer
+from utils.session_manager import load_user_session
 from utils.agent_orchestrator import orchestrate_agents
 from utils.planner_agent import plan_tools_for_query
-from utils.intent_classifier import classify_query  # optional if not using
+from utils.cache_manager import GlobalCache, is_public_query
+from utils.debug_logger import add_log
+
+load_dotenv()
 
 st.set_page_config(page_title="💬 HDFC Banking Chatbot", layout="wide")
 
-st.title("💬 HDFC Banking Chatbot")
-st.markdown("Ask me anything about HDFC loans, credit cards, RBI circulars, etc.")
+st.title("🏦 HDFC Banking Assistant (RAG + Agents + Gemini + Cache)")
+st.markdown("Ask me anything about HDFC loans, credit cards, transactions, RBI circulars, KYC, etc.")
 
-# Track pipeline steps
-debug_logs = []
+# --- Session Management ---
+user_id = st.sidebar.text_input("👤 Enter User ID", value="001")
 
-with st.form("chat_form"):
-    user_input = st.text_area("🧠 Your Query:", height=100)
-    submitted = st.form_submit_button("Ask")
+if user_id and "session_data" not in st.session_state:
+    session, greeting = load_user_session(user_id)
+    if session:
+        st.session_state.session_data = session
+        st.session_state.chat_history = []
+        st.success(greeting)
+    else:
+        st.error(greeting)
 
-if submitted and user_input.strip():
-    try:
-        st.markdown("### 🧾 Debug Logs")
-        debug_logs.append(f"🔍 Query: `{user_input}`")
+# --- Chat Input ---
+if "session_data" in st.session_state:
+    query = st.chat_input("Ask your question...")
 
-        # Step 1: Load embeddings / docs (RAG base)
-        use_case = load_documents_for_use_case(user_input)
-        debug_logs.append(f"📚 Use Case: `{use_case}`")
+    if query:
+        session = st.session_state.session_data
+        debug_steps = [f"🔍 Query: {query}"]
 
-        # Step 2: Classify public vs internal
-        public = is_public_query(intent=None, use_case=use_case)
-        debug_logs.append(f"🌐 Is Public Query? `{public}`")
+        # Step 1: Classify intent + use case
+        intent, use_case = update_context_with_memory(query, session)
+        debug_steps.append(f"🧠 Intent: `{intent}`")
+        debug_steps.append(f"📂 Use Case: `{use_case}`")
 
-        # Step 3: Check cache
-        cached = GlobalCache.get(user_input)
-        if cached:
-            debug_logs.append("💾 Cache Hit")
-            st.success("✅ Response (Cached)")
-            st.write(cached)
-        else:
-            debug_logs.append("💾 Cache Miss")
-
-            # Step 4: Choose between RAG or Agents
-            if public:
-                debug_logs.append("🛠 Using Agent Pipeline")
-                tools = plan_tools_for_query(user_input)
-                debug_logs.append(f"🔧 Tools Planned: {tools}")
-                response = orchestrate_agents(user_input, use_case)
-                debug_logs.append("🤖 Agent Pipeline Executed")
+        # Step 2: Check cache
+        cached = None
+        if is_public_query(intent, use_case):
+            cached = GlobalCache.get(query)
+            if cached:
+                debug_steps.append("💾 Cache Hit")
+                final_response = cached
             else:
-                debug_logs.append("📄 Using RAG (Document-Based)")
-                matched_doc = find_best_document(user_input)
-                if matched_doc:
-                    response = generate_final_answer(user_input, matched_doc, user_name="Aditya Sharma")
-                    debug_logs.append("📄 RAG Response Generated")
-                else:
-                    response = "⚠️ No relevant information found in RAG documents."
-                    debug_logs.append("⚠️ RAG Failed: No matching doc")
+                debug_steps.append("💾 Cache Miss")
 
-            # Step 5: Show result
-            st.success("✅ Final Answer")
-            st.markdown(response)
+        if not cached:
+            try:
+                # Step 3: Use RAG (for supported use cases)
+                context = load_documents_for_use_case(use_case)
+                if "⚠️" in context or len(context.strip()) < 20:
+                    raise ValueError("Weak RAG context")
+                debug_steps.append("📚 RAG used for context")
 
-    except Exception as e:
-        st.error(f"❌ App Crashed: {e}")
-        debug_logs.append(f"❌ Exception: {e}")
+                final_response = generate_final_answer(query, context, session["name"])
+                debug_steps.append("✅ Gemini response from RAG")
 
-    # Step 6: Show debug logs
-    with st.expander("🔎 Debug Trace", expanded=True):
-        st.markdown("\n".join([f"- {log}" for log in debug_logs]))
+            except Exception as rag_err:
+                debug_steps.append(f"⚠️ RAG Failed: {rag_err}")
+                # Step 4: Fallback to agent pipeline
+                response = orchestrate_agents(query, use_case, user_name=session["name"])
+                final_response = response
+                debug_steps.append("🛠 Agentic fallback used")
+
+            # Step 5: Cache (only if public)
+            if is_public_query(intent, use_case):
+                GlobalCache.set(query, final_response, use_case=use_case)
+
+        # Step 6: Memory logging
+        session["memory"].append({
+            "query": query,
+            "intent": intent,
+            "use_case": use_case,
+            "context": "",  # omit full context in memory
+            "response": final_response
+        })
+        st.session_state.chat_history.append({
+            "query": query,
+            "response": final_response
+        })
+
+        # Step 7: Log debug
+        add_log(query, debug_steps)
+
+# --- Chat Display ---
+if "chat_history" in st.session_state:
+    for item in st.session_state.chat_history:
+        with st.chat_message("user"):
+            st.write(item["query"])
+        with st.chat_message("assistant"):
+            st.markdown(item["response"])
