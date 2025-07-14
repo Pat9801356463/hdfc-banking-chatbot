@@ -4,6 +4,7 @@ import os
 import fitz  # PyMuPDF
 import pandas as pd
 from docx import Document
+from sentence_transformers import SentenceTransformer, util
 
 # Actual file/folder mappings from your data/
 USECASE_DOC_PATHS = {
@@ -47,6 +48,8 @@ USECASE_DOC_PATHS = {
     ]
 }
 
+model = SentenceTransformer("all-MiniLM-L6-v2")  # For semantic matching
+
 def extract_text_from_docx(path):
     doc = Document(path)
     return "\n".join(para.text.strip() for para in doc.paragraphs if para.text.strip())
@@ -60,7 +63,7 @@ def extract_text_from_pdf(path):
 
 def extract_text_from_xlsx(path):
     try:
-        dfs = pd.read_excel(path, sheet_name=None)  # Load all sheets
+        dfs = pd.read_excel(path, sheet_name=None)
         text_parts = []
         for name, df in dfs.items():
             preview = df.head(5).to_string(index=False)
@@ -104,3 +107,34 @@ def load_documents_for_use_case(use_case):
         return "⚠️ No retrievable content found."
 
     return "\n---\n".join(all_text)[:3000]  # Trimmed to fit Gemini context
+
+def find_best_document(query):
+    """
+    R&D Prototype: Return document text most semantically similar to the query.
+    """
+    best_doc = ""
+    best_score = -1.0
+    query_emb = model.encode(query, convert_to_tensor=True)
+
+    for use_case, paths in USECASE_DOC_PATHS.items():
+        for path in paths:
+            if os.path.isfile(path):
+                if path.endswith(".pdf"):
+                    text = extract_text_from_pdf(path)
+                elif path.endswith(".docx"):
+                    text = extract_text_from_docx(path)
+                elif path.endswith(".xlsx"):
+                    text = extract_text_from_xlsx(path)
+                else:
+                    continue
+
+                if not text.strip():
+                    continue
+
+                doc_emb = model.encode(text[:1000], convert_to_tensor=True)
+                score = util.cos_sim(query_emb, doc_emb).item()
+                if score > best_score:
+                    best_score = score
+                    best_doc = text
+
+    return best_doc if best_doc else None
