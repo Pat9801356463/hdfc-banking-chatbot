@@ -59,19 +59,27 @@ if "session_data" in st.session_state:
             else:
                 debug_steps.append("💾 Cache Miss")
 
-        # Step 3: RAG (document lookup)
-        if not cached:
-            try:
-                context = load_documents_for_use_case(use_case)
-                if "⚠️" in context or len(context.strip()) < 20:
-                    raise ValueError("Weak RAG context")
-                debug_steps.append("📚 RAG loaded successfully")
-                final_response = generate_final_answer(query, context, session["name"])
-                debug_steps.append("✅ Gemini generated from RAG")
-            except Exception as rag_fail:
-                debug_steps.append(f"⚠️ RAG failed: {rag_fail}")
-                final_response = orchestrate_agents(query, use_case, user_name=session["name"])
-                debug_steps.append("🛠 Fallback to Agent pipeline")
+     if not cached:
+    try:
+        if use_case == "Transaction History":
+            context = session["transactions"].tail(5).to_string(index=False)
+            debug_steps.append("📊 Pulled last 5 transactions from session")
+            final_response = generate_final_answer(query, context, session["name"])
+            debug_steps.append("✅ Gemini response from transaction data")
+
+        else:
+            context = load_documents_for_use_case(use_case)
+            if "⚠️" in context or len(context.strip()) < 20:
+                raise ValueError("Weak RAG context")
+            debug_steps.append("📚 RAG loaded successfully")
+            final_response = generate_final_answer(query, context, session["name"])
+            debug_steps.append("✅ Gemini response from RAG")
+
+    except Exception as rag_fail:
+        debug_steps.append(f"⚠️ RAG failed: {rag_fail}")
+        final_response = orchestrate_agents(query, use_case, user_name=session["name"])
+        debug_steps.append("🛠 Agentic fallback used")
+
 
             # Step 4: Cache result if public
             if is_public_query(intent, use_case):
