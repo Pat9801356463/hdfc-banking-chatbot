@@ -5,4 +5,4 @@ GOOGLE_API_KEY=Your Google Api Key
 COHERE_API_KEY=Your Cohere Api Key
 Go on respective websites generate api keys for both google and cohere the paste the same in R.H.S.
 Then go on streamlit Create Apps-> deploy-> free -> Github 
-choose repo and then main file as 
+choose repo and then main file as Streamlit_chatbot_ui.py   then you are good to go 
